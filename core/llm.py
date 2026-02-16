@@ -3,7 +3,7 @@ OpenAI LLM integration for MOM generation and transcription.
 
 Uses structured output (JSON) to generate meeting minutes with Pydantic validation.
 """
-from typing import Optional, Any
+from typing import Optional, Any, Callable
 import json
 import os
 
@@ -79,12 +79,14 @@ def _augment_missing_action_notes(mom_data: dict) -> dict:
     return mom_data
 
 
-def transcribe_audio(file_path: str) -> str:
+def transcribe_audio(file_path: str, progress_callback: Optional[Callable[[dict], None]] = None) -> str:
     """
     Transcribe audio file to text using OpenAI Whisper.
 
     Args:
         file_path: Path to audio file
+        progress_callback: Optional callback function(dict) called after each chunk
+                         dict contains: {'chunk': #, 'total_chunks': #, 'duration_sec': #}
 
     Returns:
         Transcribed text
@@ -98,7 +100,7 @@ def transcribe_audio(file_path: str) -> str:
     chunk_size_mb = int(os.getenv("CHUNK_SIZE_MB", "20"))
 
     try:
-        return transcriber.transcribe_audio(file_path, chunk_size_mb=chunk_size_mb)
+        return transcriber.transcribe_audio(file_path, chunk_size_mb=chunk_size_mb, progress_callback=progress_callback)
     except (FileNotFoundError, ValueError):
         raise
     except OpenAIError:

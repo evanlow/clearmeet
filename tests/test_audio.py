@@ -97,8 +97,8 @@ class TestAudioTranscriber:
         
         result = transcriber.transcribe_audio("large_audio.mp3", chunk_size_mb=20)
         
-        # Verify chunking was triggered
-        mock_chunk.assert_called_once_with("large_audio.mp3", None, 20)
+        # Verify chunking was triggered (now includes progress_callback parameter)
+        mock_chunk.assert_called_once_with("large_audio.mp3", None, 20, None)
         assert result == "Chunked transcript"
 
     def test_transcribe_with_chunking_falls_back_to_ffmpeg_when_pydub_missing(self, transcriber):
@@ -122,7 +122,7 @@ class TestAudioTranscriber:
                     chunk_size_mb=20
                 )
 
-        mock_ffmpeg.assert_called_once_with("audio.mp3", "en", 20)
+        mock_ffmpeg.assert_called_once_with("audio.mp3", "en", 20, None)
         assert result == "ffmpeg transcript"
     
     @patch('core.audio.OpenAI')

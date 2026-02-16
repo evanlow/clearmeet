@@ -3,7 +3,7 @@ Audio transcription using OpenAI Whisper API.
 
 Handles audio file upload and transcription to text, including chunking for large files.
 """
-from typing import Optional, List
+from typing import Optional, List, Callable
 import os
 from pathlib import Path
 import math
@@ -37,7 +37,8 @@ class AudioTranscriber:
         self,
         audio_file_path: str,
         language: Optional[str] = None,
-        chunk_size_mb: int = 20
+        chunk_size_mb: int = 20,
+        progress_callback: Optional[Callable[[dict], None]] = None
     ) -> str:
         """
         Transcribe audio file to text, with automatic chunking for large files.
@@ -46,6 +47,8 @@ class AudioTranscriber:
             audio_file_path: Path to audio file
             language: Optional language code (e.g., 'en', 'es')
             chunk_size_mb: Target chunk size in MB for splitting large files
+            progress_callback: Optional callback function(dict) called after each chunk
+                             dict contains: {'chunk': #, 'total_chunks': #, 'duration_sec': #}
             
         Returns:
             Transcribed text
@@ -75,7 +78,7 @@ class AudioTranscriber:
         # Use chunking for large files
         if file_size_mb > chunk_threshold_mb:
             print(f"[AUDIO] File exceeds {chunk_threshold_mb}MB, using chunking approach")
-            return self._transcribe_with_chunking(audio_file_path, language, chunk_size_mb)
+            return self._transcribe_with_chunking(audio_file_path, language, chunk_size_mb, progress_callback)
         
         # Standard single-file transcription for smaller files
         print(f"[AUDIO] File under {chunk_threshold_mb}MB, using standard transcription")
@@ -129,7 +132,8 @@ class AudioTranscriber:
         self,
         audio_file_path: str,
         language: Optional[str] = None,
-        chunk_size_mb: int = 20
+        chunk_size_mb: int = 20,
+        progress_callback: Optional[Callable[[dict], None]] = None
     ) -> str:
         """
         Transcribe large audio file by splitting into chunks.
@@ -147,7 +151,7 @@ class AudioTranscriber:
             from pydub import AudioSegment
         except ImportError:
             print("[AUDIO] pydub not available; falling back to ffmpeg chunking")
-            return self._transcribe_with_ffmpeg_chunking(audio_file_path, language, chunk_size_mb)
+            return self._transcribe_with_ffmpeg_chunking(audio_file_path, language, chunk_size_mb, progress_callback)
         
         print(f"[AUDIO] Loading audio file for chunking...")
         
@@ -196,6 +200,14 @@ class AudioTranscriber:
                 transcripts.append(chunk_transcript)
                 
                 print(f"[AUDIO] ✓ Chunk {i+1}/{num_chunks} completed ({len(chunk_transcript)} chars)")
+                
+                # Call progress callback
+                if progress_callback:
+                    progress_callback({
+                        'chunk': i + 1,
+                        'total_chunks': num_chunks,
+                        'duration_sec': (end_ms - start_ms) / 1000
+                    })
             
             # Combine transcripts
             print(f"[AUDIO] Combining {len(transcripts)} transcripts...")
@@ -225,7 +237,8 @@ class AudioTranscriber:
         self,
         audio_file_path: str,
         language: Optional[str] = None,
-        chunk_size_mb: int = 20
+        chunk_size_mb: int = 20,
+        progress_callback: Optional[Callable[[dict], None]] = None
     ) -> str:
         """
         Transcribe large audio file by splitting into chunks using ffmpeg.
@@ -280,6 +293,14 @@ class AudioTranscriber:
                 chunk_transcript = self._transcribe_single_file(str(chunk_path), language)
                 transcripts.append(chunk_transcript)
                 print(f"[AUDIO] ✓ Chunk {i}/{len(chunk_files)} completed ({len(chunk_transcript)} chars)")
+                
+                # Call progress callback
+                if progress_callback:
+                    progress_callback({
+                        'chunk': i,
+                        'total_chunks': len(chunk_files),
+                        'duration_sec': chunk_duration_sec
+                    })
 
             print(f"[AUDIO] Combining {len(transcripts)} transcripts...")
             combined_transcript = "\n\n[Continuing...]\n\n".join(transcripts)

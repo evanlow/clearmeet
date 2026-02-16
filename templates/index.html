@@ -187,9 +187,50 @@ if (inputForm) {
     console.log('[ClearMeet] 📊 Showing loading overlay...');
     const loadingTitle = document.getElementById('loadingTitle');
     const loadingDetail = document.getElementById('loadingDetail');
+    const loadingProgress = document.getElementById('loadingProgress');
+    
     if (audioInput) {
         loadingTitle.textContent = 'Processing Audio...';
-        loadingDetail.textContent = 'This may take several minutes for large files.';
+        loadingDetail.innerHTML = '<div id="progressInfo">Starting...</div>';
+        
+        // Start SSE progress tracking
+        const progressStream = new EventSource('/progress');
+        let progressStarted = false;
+        
+        progressStream.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                
+                if (data.completed) {
+                    console.log('[ClearMeet] ✓ Audio processing complete');
+                    progressStream.close();
+                    return;
+                }
+                
+                progressStarted = true;
+                const percent = data.percent || 0;
+                const chunk = data.chunk || 0;
+                const total = data.total_chunks || 0;
+                const eta = data.estimated_seconds || 0;
+                
+                const etaText = eta > 0 ? ` (~${eta}s remaining)` : '';
+                const progressText = `<strong>Chunk ${chunk}/${total}</strong> (${percent}%)${etaText}`;
+                
+                const progressInfo = document.getElementById('progressInfo');
+                if (progressInfo) {
+                    progressInfo.innerHTML = progressText;
+                }
+                
+                console.log(`[ClearMeet] Progress: ${progressText}`);
+            } catch (err) {
+                console.error('[ClearMeet] Error parsing progress:', err);
+            }
+        };
+        
+        progressStream.onerror = function() {
+            console.log('[ClearMeet] SSE connection closed');
+            progressStream.close();
+        };
     } else {
         loadingTitle.textContent = 'Generating MOM...';
         loadingDetail.textContent = 'This may take a moment.';

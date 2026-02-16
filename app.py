@@ -3,7 +3,7 @@ ClearMeet Flask Application
 
 Main Flask app with routes for MOM generation workflow.
 """
-from flask import Flask, render_template, request, session, redirect, url_for, send_file, flash
+from flask import Flask, render_template, request, session, redirect, url_for, send_file, flash, g
 from werkzeug.utils import secure_filename
 import os
 import json
@@ -105,8 +105,20 @@ def create_app(config_name: Optional[str] = None) -> Flask:
                             flash(f"Audio file validation failed: {error_msg}", 'error')
                             return redirect(url_for('index'))
                         
+                        # Create progress callback for SSE updates
+                        def progress_callback(progress_data):
+                            """Update progress tracking for SSE stream."""
+                            # Store progress in Flask's g object (thread-local)
+                            if not hasattr(g, 'progress_chunks'):
+                                g.progress_chunks = []
+                            g.progress_chunks.append(progress_data.get('duration_sec', 0))
+                            
+                            progress_data['avg_time_per_chunk'] = sum(g.progress_chunks) / len(g.progress_chunks)
+                            setattr(g, 'current_progress', progress_data)
+                            print(f"[PROGRESS] Chunk {progress_data.get('chunk')}/{progress_data.get('total_chunks')} - {progress_data.get('avg_time_per_chunk', 0):.1f}s avg")
+                        
                         # Transcribe audio (with automatic chunking for large files)
-                        transcript = transcribe_audio(filepath)
+                        transcript = transcribe_audio(filepath, progress_callback=progress_callback)
                         
                     finally:
                         # Clean up uploaded file
@@ -191,6 +203,44 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             print("="*80 + "\n")
             flash(f"Error processing input: {str(e)}", 'error')
             return redirect(url_for('index'))
+    
+    @app.route('/progress')
+    def progress():
+        """
+        Server-Sent Events endpoint for progress updates during audio processing.
+        
+        Yields progress events with format: data: {"chunk": #, "total_chunks": #, "percent": #, ...}
+        """
+        def generate():
+            last_chunk = 0
+            while True:
+                # Get current progress from g object
+                progress_data = getattr(g, 'current_progress', {})
+                
+                if progress_data and progress_data.get('chunk', 0) > last_chunk:
+                    chunk = progress_data.get('chunk', 0)
+                    total = progress_data.get('total_chunks', 1)
+                    percent = int((chunk / total) * 100) if total > 0 else 0
+                    avg_time = progress_data.get('avg_time_per_chunk', 0)
+                    estimated_remaining = (total - chunk) * avg_time
+                    
+                    yield f'data: {json.dumps({"chunk": chunk, "total_chunks": total, "percent": percent, "estimated_seconds": int(estimated_remaining)})}\n\n'
+                    last_chunk = chunk
+                    
+                    # If completed, signal end
+                    if chunk >= total:
+                        yield f'data: {json.dumps({"completed": true})}\n\n'
+                        break
+                
+                # Small sleep to prevent busy-waiting
+                import time
+                time.sleep(0.05)
+        
+        return generate(), {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'X-Accel-Buffering': 'no'
+        }
     
     @app.route('/edit')
     def edit():
