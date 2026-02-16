@@ -7,6 +7,7 @@ from typing import Optional, List
 import os
 from pathlib import Path
 import math
+import subprocess
 
 from openai import OpenAI
 from openai import OpenAIError
@@ -144,12 +145,9 @@ class AudioTranscriber:
         # Lazy import pydub only when needed for chunking
         try:
             from pydub import AudioSegment
-        except ImportError as e:
-            raise ImportError(
-                "pydub is required for audio chunking. "
-                "Install with: pip install pydub\n"
-                "Note: For Python 3.13+, also ensure ffmpeg is installed on your system."
-            ) from e
+        except ImportError:
+            print("[AUDIO] pydub not available; falling back to ffmpeg chunking")
+            return self._transcribe_with_ffmpeg_chunking(audio_file_path, language, chunk_size_mb)
         
         print(f"[AUDIO] Loading audio file for chunking...")
         
@@ -222,6 +220,111 @@ class AudioTranscriber:
                     temp_dir.rmdir()
             except Exception as e:
                 print(f"[AUDIO] Warning: Could not remove temp directory {temp_dir}: {e}")
+
+    def _transcribe_with_ffmpeg_chunking(
+        self,
+        audio_file_path: str,
+        language: Optional[str] = None,
+        chunk_size_mb: int = 20
+    ) -> str:
+        """
+        Transcribe large audio file by splitting into chunks using ffmpeg.
+        """
+        duration_sec = self._get_audio_duration_seconds(audio_file_path)
+        if duration_sec <= 0:
+            raise ValueError("Could not determine audio duration for chunking")
+
+        file_size_mb = os.path.getsize(audio_file_path) / (1024 * 1024)
+        num_chunks = max(1, math.ceil(file_size_mb / chunk_size_mb))
+        chunk_duration_sec = max(1, math.ceil(duration_sec / num_chunks))
+
+        print(f"[AUDIO] Audio duration: {duration_sec/60:.1f} minutes")
+        print(f"[AUDIO] Splitting into {num_chunks} chunks of ~{chunk_duration_sec/60:.1f} minutes each")
+
+        temp_dir = Path(audio_file_path).parent / f"chunks_{Path(audio_file_path).stem}"
+        temp_dir.mkdir(exist_ok=True)
+
+        output_pattern = temp_dir / "chunk_%03d.mp3"
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-i",
+            audio_file_path,
+            "-vn",
+            "-acodec",
+            "libmp3lame",
+            "-f",
+            "segment",
+            "-segment_time",
+            str(chunk_duration_sec),
+            "-reset_timestamps",
+            "1",
+            str(output_pattern)
+        ]
+
+        print("[AUDIO] Running ffmpeg segmenter...")
+        try:
+            subprocess.run(cmd, check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as e:
+            stderr = e.stderr.strip() if e.stderr else ""
+            raise RuntimeError(f"ffmpeg chunking failed: {stderr}") from e
+
+        chunk_files = sorted(temp_dir.glob("chunk_*.mp3"))
+        if not chunk_files:
+            raise RuntimeError("ffmpeg chunking produced no output files")
+
+        transcripts = []
+        try:
+            for i, chunk_path in enumerate(chunk_files, start=1):
+                print(f"[AUDIO] Transcribing chunk {i}/{len(chunk_files)}...")
+                chunk_transcript = self._transcribe_single_file(str(chunk_path), language)
+                transcripts.append(chunk_transcript)
+                print(f"[AUDIO] ✓ Chunk {i}/{len(chunk_files)} completed ({len(chunk_transcript)} chars)")
+
+            print(f"[AUDIO] Combining {len(transcripts)} transcripts...")
+            combined_transcript = "\n\n[Continuing...]\n\n".join(transcripts)
+            print(f"[AUDIO] ✓ Chunking complete. Total transcript: {len(combined_transcript)} characters")
+            return combined_transcript
+        finally:
+            print(f"[AUDIO] Cleaning up temporary chunk files...")
+            for chunk_file in chunk_files:
+                try:
+                    if chunk_file.exists():
+                        chunk_file.unlink()
+                except Exception as e:
+                    print(f"[AUDIO] Warning: Could not delete {chunk_file}: {e}")
+
+            try:
+                if temp_dir.exists():
+                    temp_dir.rmdir()
+            except Exception as e:
+                print(f"[AUDIO] Warning: Could not remove temp directory {temp_dir}: {e}")
+
+    @staticmethod
+    def _get_audio_duration_seconds(audio_file_path: str) -> float:
+        """
+        Get audio duration in seconds using ffprobe.
+        """
+        cmd = [
+            "ffprobe",
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1:nokey=1",
+            audio_file_path
+        ]
+        try:
+            result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as e:
+            stderr = e.stderr.strip() if e.stderr else ""
+            raise RuntimeError(f"ffprobe failed: {stderr}") from e
+
+        try:
+            return float(result.stdout.strip())
+        except ValueError as e:
+            raise RuntimeError("ffprobe returned invalid duration") from e
     
     @staticmethod
     def validate_audio_file(

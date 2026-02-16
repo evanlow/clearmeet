@@ -136,7 +136,7 @@ SESSION_TYPE=filesystem
 PERMANENT_SESSION_LIFETIME=3600             # 1 hour
 
 # File Upload Configuration
-MAX_CONTENT_LENGTH=16777216                 # 16MB (in bytes)
+MAX_CONTENT_LENGTH=209715200                # 200MB (in bytes)
 UPLOAD_FOLDER=temp_uploads
 ALLOWED_AUDIO_EXTENSIONS=mp3,wav,m4a,ogg
 
@@ -150,7 +150,7 @@ WHISPER_MODEL=whisper-1                     # Transcription model
 
 ### 1. Input Meeting Data
 - **Option A**: Paste transcript text (minimum 50 words)
-- **Option B**: Upload audio file (MP3, WAV, M4A, OGG - max 25MB)
+- **Option B**: Upload audio file (MP3, WAV, M4A, OGG - max 200MB; chunked for Whisper)
 - Optionally provide meeting context for better results
 
 ### 2. Review Generated MOM

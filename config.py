@@ -26,9 +26,12 @@ class Config:
     # File Upload Configuration
     MAX_CONTENT_LENGTH: int = int(os.getenv('MAX_CONTENT_LENGTH', str(200 * 1024 * 1024)))  # 200MB (supports chunking)
     UPLOAD_FOLDER: str = os.getenv('UPLOAD_FOLDER', 'temp_uploads')
-    ALLOWED_AUDIO_EXTENSIONS: set = set(
-        os.getenv('ALLOWED_AUDIO_EXTENSIONS', 'mp3,wav,m4a,ogg').split(',')
-    )
+    _raw_audio_exts = os.getenv('ALLOWED_AUDIO_EXTENSIONS', 'mp3,wav,m4a,ogg')
+    ALLOWED_AUDIO_EXTENSIONS: set = {
+        ext if ext.startswith('.') else f".{ext}"
+        for ext in [e.strip().lower() for e in _raw_audio_exts.split(',')]
+        if ext
+    }
     
     # Audio Processing Configuration
     CHUNK_SIZE_MB: int = int(os.getenv('CHUNK_SIZE_MB', '20'))  # Target chunk size for large files
