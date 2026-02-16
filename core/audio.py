@@ -85,6 +85,9 @@ class AudioTranscriber:
             
             return transcript.strip()
             
+        except ValueError:
+            # Re-raise ValueError as-is (for empty transcript validation)
+            raise
         except OpenAIError as e:
             raise OpenAIError(f"Whisper API error: {e}")
         except Exception as e:

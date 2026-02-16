@@ -132,7 +132,10 @@ class TestTranscriptParser:
     
     def test_validate_transcript_rejects_gibberish(self):
         """Test that gibberish with excessive special chars is rejected."""
-        text = "!@#$%^&*(){}[]" * 50  # Mostly special characters
+        # Create text with enough words but lots of special characters
+        words = ["word"] * 50
+        special_chars = "!@#$%^&*(){}[]" * 100
+        text = " ".join(words) + special_chars  # Mix words with excessive special chars
         is_valid, message = TranscriptParser.validate_transcript(text, min_words=10)
         assert is_valid is False
         assert "special characters" in message.lower()

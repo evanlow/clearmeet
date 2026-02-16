@@ -102,17 +102,32 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
         const tabId = this.dataset.tab;
         document.getElementById(tabId).classList.add('active');
         
-        // Clear the inactive input
+        // Disable inactive inputs so they won't be submitted
+        const transcriptField = document.getElementById('transcript_text');
+        const audioField = document.getElementById('audio_file');
+        
         if (tabId === 'text-tab') {
-            document.getElementById('audio_file').value = '';
+            transcriptField.disabled = false;
+            audioField.disabled = true;
+            audioField.value = '';
         } else {
-            document.getElementById('transcript_text').value = '';
+            transcriptField.disabled = true;
+            audioField.disabled = false;
+            transcriptField.value = '';
         }
     });
 });
 
+// On page load, ensure text tab fields are enabled
+document.getElementById('transcript_text').disabled = false;
+document.getElementById('audio_file').disabled = true;
+
 // Form validation
 document.getElementById('inputForm').addEventListener('submit', function(e) {
+    // Re-enable all fields before submission so their values are sent
+    document.getElementById('transcript_text').disabled = false;
+    document.getElementById('audio_file').disabled = false;
+    
     const textInput = document.getElementById('transcript_text').value.trim();
     const audioInput = document.getElementById('audio_file').value;
     

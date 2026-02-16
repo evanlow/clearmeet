@@ -72,6 +72,12 @@ def create_app(config_name: Optional[str] = None) -> Flask:
         Returns redirect to edit page with structured MOM data.
         """
         try:
+            print("[DEBUG] Starting process_input")
+            print(f"[DEBUG] Form data keys: {list(request.form.keys())}")
+            print(f"[DEBUG] Files keys: {list(request.files.keys())}")
+            print(f"[DEBUG] transcript_text in form: {'transcript_text' in request.form}")
+            if 'transcript_text' in request.form:
+                print(f"[DEBUG] transcript_text value: '{request.form['transcript_text'][:100]}'")
             transcript = None
             
             # Check if audio file uploaded
@@ -109,22 +115,30 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             # Check if text transcript provided
             elif 'transcript_text' in request.form:
                 transcript = request.form['transcript_text']
+                print(f"[DEBUG] Text transcript received, length: {len(transcript) if transcript else 0}")
             
             else:
+                print("[DEBUG] No transcript or audio file provided")
                 flash('Please provide either a transcript or upload an audio file', 'error')
                 return redirect(url_for('index'))
             
             # Validate transcript
+            print("[DEBUG] Cleaning transcript")
             transcript = TranscriptParser.clean_transcript(transcript)
+            print(f"[DEBUG] Cleaned transcript length: {len(transcript)}")
+            print("[DEBUG] Validating transcript")
             is_valid, error_msg = TranscriptParser.validate_transcript(transcript)
             
             if not is_valid:
+                print(f"[DEBUG] Validation failed: {error_msg}")
                 flash(f"Transcript validation failed: {error_msg}", 'error')
                 return redirect(url_for('index'))
             
             # Generate MOM using LLM
+            print("[DEBUG] Generating MOM with LLM")
             additional_context = request.form.get('additional_context', '')
             mom_data = llm_generator.generate_mom(transcript, additional_context or None)
+            print(f"[DEBUG] MOM generated successfully: {list(mom_data.keys()) if mom_data else None}")
             
             # Store in session
             session['transcript'] = transcript
@@ -136,6 +150,10 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             return redirect(url_for('edit'))
             
         except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
+            print(f"[ERROR] Exception in process_input: {str(e)}")
+            print(f"[ERROR] Traceback:\n{error_details}")
             flash(f"Error processing input: {str(e)}", 'error')
             return redirect(url_for('index'))
     
@@ -259,37 +277,38 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             mom_text=mom_text
         )
     
-    @app.route('/export', methods=['POST'])
+    @app.route('/export_mom', methods=['GET', 'POST'])
     def export_mom():
         """
         Export MOM to PDF.
         
-        Validates checklist before allowing export.
+        Validates checklist before allowing export (POST requests only).
+        GET requests export directly (for testing/direct download).
         """
         try:
-            # Validate checklist
-            checklist_data = request.form.getlist('checklist')
-            
-            # Get full checklist
-            full_checklist = MOMValidator.get_validation_checklist()
-            
-            # Mark checked items
-            for item in full_checklist:
-                item.checked = item.id in checklist_data
-            
-            # Validate all required items checked
-            all_checked, unchecked = MOMValidator.validate_checklist(full_checklist)
-            
-            if not all_checked:
-                flash(f"Please check all required items: {', '.join(unchecked)}", 'error')
-                return redirect(url_for('validate_page'))
-            
-            # Get MOM text
+            # Check if session data exists (required for both GET and POST)
             mom_text = session.get('mom_text', '')
-            
             if not mom_text:
-                flash('No MOM text found to export', 'error')
-                return redirect(url_for('validate_page'))
+                flash('No MOM data found. Please generate a MOM first.', 'error')
+                return redirect(url_for('index'))
+            
+            # Validate checklist only for POST requests (from validation form)
+            if request.method == 'POST':
+                checklist_data = request.form.getlist('checklist')
+                
+                # Get full checklist
+                full_checklist = MOMValidator.get_validation_checklist()
+                
+                # Mark checked items
+                for item in full_checklist:
+                    item.checked = item.id in checklist_data
+                
+                # Validate all required items checked
+                all_checked, unchecked = MOMValidator.validate_checklist(full_checklist)
+                
+                if not all_checked:
+                    flash(f"Please check all required items: {', '.join(unchecked)}", 'error')
+                    return redirect(url_for('validate_page'))
             
             # Prepare metadata
             metadata = {
@@ -334,8 +353,9 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     # Error handlers
     @app.errorhandler(404)
     def not_found(error):
-        """Handle 404 errors."""
-        return render_template('index.html'), 404
+        """Handle 404 errors by redirecting to index."""
+        flash('Page not found. Redirecting to home.', 'warning')
+        return redirect(url_for('index'))
     
     @app.errorhandler(500)
     def internal_error(error):
