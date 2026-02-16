@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}ClearMeet - Edit MOM{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Edit Minutes of Meeting</h2>
+    <p>Review and edit the generated MOM. You can modify structured fields or override with full text.</p>
+</div>
+
+<form action="{{ url_for('update_mom') }}" method="POST" id="editForm">
+    
+    <div class="card">
+        <div class="card-header">
+            <h3>Structured Editing</h3>
+            <p>Edit individual components of the MOM</p>
+        </div>
+        
+        <div class="form-group">
+            <label for="objective">Meeting Objective *</label>
+            <input 
+                type="text" 
+                name="objective" 
+                id="objective" 
+                class="form-control"
+                value="{{ mom_data.objective }}"
+                required
+            >
+        </div>
+        
+        <div class="form-group">
+            <label for="attendees">Attendees (comma-separated) *</label>
+            <input 
+                type="text" 
+                name="attendees" 
+                id="attendees" 
+                class="form-control"
+                value="{{ mom_data.attendees|join(', ') }}"
+                placeholder="Alice Johnson, Bob Smith, Carol Davis"
+                required
+            >
+        </div>
+        
+        <div class="form-group">
+            <label>Decisions Made *</label>
+            <div id="decisions-container">
+                {% for decision in mom_data.decisions %}
+                <div class="array-item">
+                    <input 
+                        type="text" 
+                        name="decision_{{ loop.index0 }}" 
+                        class="form-control"
+                        value="{{ decision }}"
+                    >
+                    <button type="button" class="btn-remove" onclick="removeItem(this)">Remove</button>
+                </div>
+                {% endfor %}
+            </div>
+            <button type="button" class="btn btn-secondary" onclick="addDecision()">+ Add Decision</button>
+        </div>
+        
+        <div class="form-group">
+            <label>Action Items *</label>
+            <div id="actions-container">
+                {% for item in mom_data.action_items %}
+                <div class="action-item">
+                    <input 
+                        type="text" 
+                        name="action_task_{{ loop.index0 }}" 
+                        class="form-control"
+                        placeholder="Task description"
+                        value="{{ item.task }}"
+                    >
+                    <input 
+                        type="text" 
+                        name="action_owner_{{ loop.index0 }}" 
+                        class="form-control"
+                        placeholder="Owner"
+                        value="{{ item.owner }}"
+                    >
+                    <input 
+                        type="text" 
+                        name="action_deadline_{{ loop.index0 }}" 
+                        class="form-control"
+                        placeholder="Deadline (optional)"
+                        value="{{ item.deadline or '' }}"
+                    >
+                    <button type="button" class="btn-remove" onclick="removeItem(this)">Remove</button>
+                </div>
+                {% endfor %}
+            </div>
+            <input type="hidden" name="action_count" id="action_count" value="{{ mom_data.action_items|length }}">
+            <button type="button" class="btn btn-secondary" onclick="addActionItem()">+ Add Action Item</button>
+        </div>
+        
+        <div class="form-group">
+            <label for="summary">Summary *</label>
+            <textarea 
+                name="summary" 
+                id="summary" 
+                rows="4" 
+                class="form-control"
+                required
+            >{{ mom_data.summary }}</textarea>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">
+            <h3>Full Text Override</h3>
+            <p>Or edit the complete MOM text directly</p>
+        </div>
+        
+        <div class="form-group">
+            <label>
+                <input type="checkbox" name="use_text_override" id="use_text_override" value="true">
+                Use full text editor instead of structured fields
+            </label>
+        </div>
+        
+        <div class="form-group" id="text-override-group" style="display: none;">
+            <textarea 
+                name="mom_text_override" 
+                id="mom_text_override" 
+                rows="20" 
+                class="form-control monospace"
+            >{{ mom_text }}</textarea>
+            <small class="form-text">Direct text editing - be careful to maintain proper formatting</small>
+        </div>
+    </div>
+    
+    <div class="form-actions">
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">Start Over</a>
+        <button type="submit" class="btn btn-primary btn-large">Continue to Validation →</button>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let decisionCount = {{ mom_data.decisions|length }};
+let actionCount = {{ mom_data.action_items|length }};
+
+function addDecision() {
+    const container = document.getElementById('decisions-container');
+    const div = document.createElement('div');
+    div.className = 'array-item';
+    div.innerHTML = `
+        <input type="text" name="decision_${decisionCount}" class="form-control" placeholder="Enter decision">
+        <button type="button" class="btn-remove" onclick="removeItem(this)">Remove</button>
+    `;
+    container.appendChild(div);
+    decisionCount++;
+}
+
+function addActionItem() {
+    const container = document.getElementById('actions-container');
+    const div = document.createElement('div');
+    div.className = 'action-item';
+    div.innerHTML = `
+        <input type="text" name="action_task_${actionCount}" class="form-control" placeholder="Task description">
+        <input type="text" name="action_owner_${actionCount}" class="form-control" placeholder="Owner">
+        <input type="text" name="action_deadline_${actionCount}" class="form-control" placeholder="Deadline (optional)">
+        <button type="button" class="btn-remove" onclick="removeItem(this)">Remove</button>
+    `;
+    container.appendChild(div);
+    
+    // Update action count
+    actionCount++;
+    document.getElementById('action_count').value = actionCount;
+}
+
+function removeItem(button) {
+    button.parentElement.remove();
+}
+
+// Toggle text override
+document.getElementById('use_text_override').addEventListener('change', function() {
+    const textGroup = document.getElementById('text-override-group');
+    if (this.checked) {
+        textGroup.style.display = 'block';
+    } else {
+        textGroup.style.display = 'none';
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}ClearMeet - Preview MOM{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Preview Minutes of Meeting</h2>
+    <p>Review the final MOM before exporting to PDF.</p>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>Final MOM</h3>
+    </div>
+    <div class="mom-preview">
+        <pre class="mom-text">{{ mom_text }}</pre>
+    </div>
+</div>
+
+<div class="form-actions">
+    <a href="{{ url_for('edit') }}" class="btn btn-secondary">← Edit MOM</a>
+    <a href="{{ url_for('validate_page') }}" class="btn btn-primary btn-large">Continue to Validation →</a>
+</div>
+
+<div class="info-card">
+    <h3>What's Next?</h3>
+    <p>After reviewing, proceed to the validation page where you'll:</p>
+    <ol class="steps-list">
+        <li>Complete a quality checklist</li>
+        <li>Ensure all required items are addressed</li>
+        <li>Export the final MOM as a professional PDF</li>
+    </ol>
+</div>
+{% endblock %}
