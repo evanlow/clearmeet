@@ -9,6 +9,7 @@ Tests cover:
 """
 import pytest
 import os
+import builtins
 from pathlib import Path
 from unittest.mock import Mock, patch, mock_open
 from core.audio import AudioTranscriber
@@ -99,6 +100,30 @@ class TestAudioTranscriber:
         # Verify chunking was triggered
         mock_chunk.assert_called_once_with("large_audio.mp3", None, 20)
         assert result == "Chunked transcript"
+
+    def test_transcribe_with_chunking_falls_back_to_ffmpeg_when_pydub_missing(self, transcriber):
+        """Test fallback to ffmpeg chunking when pydub import fails."""
+        original_import = builtins.__import__
+
+        def import_side_effect(name, *args, **kwargs):
+            if name == 'pydub':
+                raise ImportError("No module named 'pydub'")
+            return original_import(name, *args, **kwargs)
+
+        with patch('builtins.__import__', side_effect=import_side_effect):
+            with patch.object(
+                AudioTranscriber,
+                '_transcribe_with_ffmpeg_chunking',
+                return_value="ffmpeg transcript"
+            ) as mock_ffmpeg:
+                result = transcriber._transcribe_with_chunking(
+                    "audio.mp3",
+                    language="en",
+                    chunk_size_mb=20
+                )
+
+        mock_ffmpeg.assert_called_once_with("audio.mp3", "en", 20)
+        assert result == "ffmpeg transcript"
     
     @patch('core.audio.OpenAI')
     @patch('os.path.exists')

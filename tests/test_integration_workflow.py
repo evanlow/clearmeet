@@ -139,8 +139,15 @@ class TestCompleteTextWorkflow:
         response = client.post('/update', data={
             'objective': mock_openai_generate['objective'],
             'attendees': ', '.join(mock_openai_generate['attendees']),
-            'decisions': '\n'.join(mock_openai_generate['decisions']),
-            'action_items': json.dumps(mock_openai_generate['action_items']),
+            'decision_0': mock_openai_generate['decisions'][0],
+            'decision_1': mock_openai_generate['decisions'][1],
+            'action_count': '2',
+            'action_task_0': mock_openai_generate['action_items'][0]['task'],
+            'action_owner_0': mock_openai_generate['action_items'][0]['owner'],
+            'action_deadline_0': mock_openai_generate['action_items'][0]['deadline'],
+            'action_task_1': mock_openai_generate['action_items'][1]['task'],
+            'action_owner_1': mock_openai_generate['action_items'][1]['owner'],
+            'action_deadline_1': mock_openai_generate['action_items'][1]['deadline'],
             'summary': mock_openai_generate['summary']
         }, follow_redirects=False)
         
@@ -267,8 +274,15 @@ class TestCompleteAudioWorkflow:
         response = client.post('/update', data={
             'objective': mock_openai_generate['objective'],
             'attendees': ', '.join(mock_openai_generate['attendees']),
-            'decisions': '\n'.join(mock_openai_generate['decisions']),
-            'action_items': json.dumps(mock_openai_generate['action_items']),
+            'decision_0': mock_openai_generate['decisions'][0],
+            'decision_1': mock_openai_generate['decisions'][1],
+            'action_count': '2',
+            'action_task_0': mock_openai_generate['action_items'][0]['task'],
+            'action_owner_0': mock_openai_generate['action_items'][0]['owner'],
+            'action_deadline_0': mock_openai_generate['action_items'][0]['deadline'],
+            'action_task_1': mock_openai_generate['action_items'][1]['task'],
+            'action_owner_1': mock_openai_generate['action_items'][1]['owner'],
+            'action_deadline_1': mock_openai_generate['action_items'][1]['deadline'],
             'summary': mock_openai_generate['summary']
         }, follow_redirects=False)
         

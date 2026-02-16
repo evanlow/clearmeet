@@ -167,18 +167,54 @@ class TestUpdateRoute:
                 'summary': ''
             }
         
-        response = client.post('/update', data={
-            'objective': 'New objective',
-            'attendees': 'Alice, Bob',
-            'decisions': 'Decision 1',
-            'action_items': json.dumps([
-                {'task': 'Task 1', 'owner': 'Alice', 'deadline': '2026-03-01'}
-            ]),
-            'summary': 'New summary'
-        }, follow_redirects=False)
+        with client:
+            response = client.post('/update', data={
+                'objective': 'New objective',
+                'attendees': 'Alice, Bob',
+                'decision_0': 'Decision 1',
+                'decision_1': 'Decision 2',
+                'action_count': '1',
+                'action_task_0': 'Task 1',
+                'action_owner_0': 'Alice',
+                'action_deadline_0': '2026-03-01',
+                'summary': 'New summary'
+            }, follow_redirects=False)
+            
+            assert response.status_code == 302
+            assert '/validate' in response.location
+            
+            from flask import session
+            assert session['mom_data']['objective'] == 'New objective'
+            assert session['mom_data']['decisions'] == ['Decision 1', 'Decision 2']
+            assert session['mom_data']['action_items'][0]['task'] == 'Task 1'
+            assert session['text_override'] is False
+
+    def test_update_with_text_override(self, client):
+        """Test updating MOM with full text override."""
+        with client.session_transaction() as sess:
+            sess['mom_data'] = {
+                'objective': 'Old objective',
+                'attendees': [],
+                'decisions': [],
+                'action_items': [],
+                'summary': ''
+            }
+            sess['mom_text'] = 'Old MOM text'
         
-        assert response.status_code == 302
-        assert '/validate' in response.location
+        override_text = "This is the full MOM text override content that is long enough."
+        
+        with client:
+            response = client.post('/update', data={
+                'use_text_override': 'true',
+                'mom_text_override': override_text
+            }, follow_redirects=False)
+            
+            assert response.status_code == 302
+            assert '/validate' in response.location
+            
+            from flask import session
+            assert session['mom_text'] == override_text
+            assert session['text_override'] is True
 
 
 class TestValidateRoute:
