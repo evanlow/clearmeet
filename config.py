@@ -24,11 +24,15 @@ class Config:
     PERMANENT_SESSION_LIFETIME: int = int(os.getenv('PERMANENT_SESSION_LIFETIME', '3600'))
     
     # File Upload Configuration
-    MAX_CONTENT_LENGTH: int = int(os.getenv('MAX_CONTENT_LENGTH', str(16 * 1024 * 1024)))  # 16MB
+    MAX_CONTENT_LENGTH: int = int(os.getenv('MAX_CONTENT_LENGTH', str(200 * 1024 * 1024)))  # 200MB (supports chunking)
     UPLOAD_FOLDER: str = os.getenv('UPLOAD_FOLDER', 'temp_uploads')
     ALLOWED_AUDIO_EXTENSIONS: set = set(
         os.getenv('ALLOWED_AUDIO_EXTENSIONS', 'mp3,wav,m4a,ogg').split(',')
     )
+    
+    # Audio Processing Configuration
+    CHUNK_SIZE_MB: int = int(os.getenv('CHUNK_SIZE_MB', '20'))  # Target chunk size for large files
+    WHISPER_API_LIMIT_MB: int = 25  # OpenAI Whisper API file size limit
     
     # OpenAI Configuration
     OPENAI_API_KEY: Optional[str] = os.getenv('OPENAI_API_KEY')

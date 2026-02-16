@@ -82,6 +82,16 @@
     </form>
 </div>
 
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="loading-content">
+        <div class="spinner"></div>
+        <h3>Processing Audio...</h3>
+        <p>This may take several minutes for large files.</p>
+        <p class="warning">⚠️ Do not close this page</p>
+    </div>
+</div>
+
 <div class="info-card">
     <h3>How It Works</h3>
     <ol class="steps-list">
@@ -172,6 +182,10 @@ if (inputForm) {
         alert('Please provide either a transcript or upload an audio file');
         return false;
     }
+    
+    // Show loading overlay
+    console.log('[ClearMeet] 📊 Showing loading overlay...');
+    document.getElementById('loadingOverlay').style.display = 'flex';
     
     formSubmitting = true;
     console.log('[ClearMeet] ✓ Validation passed, submitting form...');

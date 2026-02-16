@@ -1,14 +1,18 @@
 """
 Audio transcription using OpenAI Whisper API.
 
-Handles audio file upload and transcription to text.
+Handles audio file upload and transcription to text, including chunking for large files.
 """
-from typing import Optional
+from typing import Optional, List
 import os
 from pathlib import Path
+import math
 
 from openai import OpenAI
 from openai import OpenAIError
+
+# pydub is imported only when needed for chunking (lazy import)
+# This avoids Python 3.13 audioop compatibility issues when not using chunking
 
 
 class AudioTranscriber:
@@ -31,14 +35,16 @@ class AudioTranscriber:
     def transcribe_audio(
         self,
         audio_file_path: str,
-        language: Optional[str] = None
+        language: Optional[str] = None,
+        chunk_size_mb: int = 20
     ) -> str:
         """
-        Transcribe audio file to text.
+        Transcribe audio file to text, with automatic chunking for large files.
         
         Args:
             audio_file_path: Path to audio file
             language: Optional language code (e.g., 'en', 'es')
+            chunk_size_mb: Target chunk size in MB for splitting large files
             
         Returns:
             Transcribed text
@@ -58,12 +64,37 @@ class AudioTranscriber:
         if file_ext not in allowed_extensions:
             raise ValueError(f"Unsupported audio format: {file_ext}")
         
-        # Check file size (25MB limit for Whisper API)
+        # Check file size
         file_size = os.path.getsize(audio_file_path)
-        max_size = 25 * 1024 * 1024  # 25MB
-        if file_size > max_size:
-            raise ValueError(f"Audio file too large ({file_size} bytes, max {max_size} bytes)")
+        file_size_mb = file_size / (1024 * 1024)
+        chunk_threshold_mb = chunk_size_mb
         
+        print(f"[AUDIO] File size: {file_size_mb:.1f}MB")
+        
+        # Use chunking for large files
+        if file_size_mb > chunk_threshold_mb:
+            print(f"[AUDIO] File exceeds {chunk_threshold_mb}MB, using chunking approach")
+            return self._transcribe_with_chunking(audio_file_path, language, chunk_size_mb)
+        
+        # Standard single-file transcription for smaller files
+        print(f"[AUDIO] File under {chunk_threshold_mb}MB, using standard transcription")
+        return self._transcribe_single_file(audio_file_path, language)
+    
+    def _transcribe_single_file(
+        self,
+        audio_file_path: str,
+        language: Optional[str] = None
+    ) -> str:
+        """
+        Transcribe a single audio file using Whisper API.
+        
+        Args:
+            audio_file_path: Path to audio file
+            language: Optional language code
+            
+        Returns:
+            Transcribed text
+        """
         try:
             # Open and transcribe audio file
             with open(audio_file_path, 'rb') as audio_file:
@@ -92,6 +123,105 @@ class AudioTranscriber:
             raise OpenAIError(f"Whisper API error: {e}")
         except Exception as e:
             raise Exception(f"Unexpected error during transcription: {e}")
+    
+    def _transcribe_with_chunking(
+        self,
+        audio_file_path: str,
+        language: Optional[str] = None,
+        chunk_size_mb: int = 20
+    ) -> str:
+        """
+        Transcribe large audio file by splitting into chunks.
+        
+        Args:
+            audio_file_path: Path to audio file
+            language: Optional language code
+            chunk_size_mb: Target chunk size in MB
+            
+        Returns:
+            Combined transcribed text from all chunks
+        """
+        # Lazy import pydub only when needed for chunking
+        try:
+            from pydub import AudioSegment
+        except ImportError as e:
+            raise ImportError(
+                "pydub is required for audio chunking. "
+                "Install with: pip install pydub\n"
+                "Note: For Python 3.13+, also ensure ffmpeg is installed on your system."
+            ) from e
+        
+        print(f"[AUDIO] Loading audio file for chunking...")
+        
+        # Load audio file with pydub
+        file_ext = Path(audio_file_path).suffix.lower().lstrip('.')
+        audio = AudioSegment.from_file(audio_file_path, format=file_ext)
+        
+        # Calculate chunk duration
+        audio_duration_ms = len(audio)
+        audio_duration_min = audio_duration_ms / 60000
+        file_size_mb = os.path.getsize(audio_file_path) / (1024 * 1024)
+        
+        # Calculate how many chunks we need
+        num_chunks = math.ceil(file_size_mb / chunk_size_mb)
+        chunk_duration_ms = audio_duration_ms // num_chunks
+        
+        print(f"[AUDIO] Audio duration: {audio_duration_min:.1f} minutes")
+        print(f"[AUDIO] Splitting into {num_chunks} chunks of ~{chunk_duration_ms/60000:.1f} minutes each")
+        
+        # Create temp directory for chunks
+        temp_dir = Path(audio_file_path).parent / f"chunks_{Path(audio_file_path).stem}"
+        temp_dir.mkdir(exist_ok=True)
+        
+        transcripts = []
+        chunk_files = []
+        
+        try:
+            # Split and transcribe chunks
+            for i in range(num_chunks):
+                start_ms = i * chunk_duration_ms
+                end_ms = min((i + 1) * chunk_duration_ms, audio_duration_ms)
+                
+                print(f"[AUDIO] Processing chunk {i+1}/{num_chunks} ({start_ms/60000:.1f}-{end_ms/60000:.1f} min)...")
+                
+                # Extract chunk
+                chunk = audio[start_ms:end_ms]
+                
+                # Save chunk
+                chunk_path = temp_dir / f"chunk_{i:03d}.mp3"
+                chunk.export(chunk_path, format="mp3")
+                chunk_files.append(chunk_path)
+                
+                # Transcribe chunk
+                print(f"[AUDIO] Transcribing chunk {i+1}/{num_chunks}...")
+                chunk_transcript = self._transcribe_single_file(str(chunk_path), language)
+                transcripts.append(chunk_transcript)
+                
+                print(f"[AUDIO] ✓ Chunk {i+1}/{num_chunks} completed ({len(chunk_transcript)} chars)")
+            
+            # Combine transcripts
+            print(f"[AUDIO] Combining {len(transcripts)} transcripts...")
+            combined_transcript = "\n\n[Continuing...]\n\n".join(transcripts)
+            
+            print(f"[AUDIO] ✓ Chunking complete. Total transcript: {len(combined_transcript)} characters")
+            return combined_transcript
+            
+        finally:
+            # Clean up chunk files
+            print(f"[AUDIO] Cleaning up temporary chunk files...")
+            for chunk_file in chunk_files:
+                try:
+                    if chunk_file.exists():
+                        chunk_file.unlink()
+                except Exception as e:
+                    print(f"[AUDIO] Warning: Could not delete {chunk_file}: {e}")
+            
+            # Remove temp directory
+            try:
+                if temp_dir.exists():
+                    temp_dir.rmdir()
+            except Exception as e:
+                print(f"[AUDIO] Warning: Could not remove temp directory {temp_dir}: {e}")
     
     @staticmethod
     def validate_audio_file(

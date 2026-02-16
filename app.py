@@ -116,8 +116,11 @@ def create_app(config_name: Optional[str] = None) -> Flask:
                             flash(f"Audio file validation failed: {error_msg}", 'error')
                             return redirect(url_for('index'))
                         
-                        # Transcribe audio
-                        transcript = audio_transcriber.transcribe_audio(filepath)
+                        # Transcribe audio (with automatic chunking for large files)
+                        transcript = audio_transcriber.transcribe_audio(
+                            filepath,
+                            chunk_size_mb=app.config.get('CHUNK_SIZE_MB', 20)
+                        )
                         
                     finally:
                         # Clean up uploaded file
