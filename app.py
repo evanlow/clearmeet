@@ -94,11 +94,8 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             
             # Check if audio file uploaded
             print("[DEBUG] Checking for audio file...")
-            if 'audio_file' in request.files:
-                audio_file = request.files['audio_file']
-                print(f"[DEBUG] Audio file found: {audio_file.filename if audio_file else 'None'}")
-                
-                if audio_file and audio_file.filename:
+            audio_file = request.files.get('audio_file')
+            if audio_file and audio_file.filename:
                     print(f"[DEBUG] Processing audio file: {audio_file.filename}")
                     # Secure filename
                     filename = secure_filename(audio_file.filename)
@@ -128,12 +125,13 @@ def create_app(config_name: Optional[str] = None) -> Flask:
                             os.remove(filepath)
             
             # Check if text transcript provided
-            elif 'transcript_text' in request.form:
+            if not transcript and 'transcript_text' in request.form:
                 transcript = request.form['transcript_text']
                 print(f"[DEBUG] Text transcript received, length: {len(transcript) if transcript else 0}")
                 print(f"[DEBUG] Text transcript (first 100 chars): {transcript[:100] if transcript else 'EMPTY'}")
             
-            else:
+            # Ensure we have some input
+            if not transcript:
                 print("[DEBUG] ❌ ERROR: No transcript or audio file provided")
                 print(f"[DEBUG] Form keys: {list(request.form.keys())}")
                 print(f"[DEBUG] File keys: {list(request.files.keys())}")

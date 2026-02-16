@@ -113,29 +113,27 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
         const tabId = this.dataset.tab;
         document.getElementById(tabId).classList.add('active');
         
-        // Disable inactive inputs so they won't be submitted
-        const transcriptField = document.getElementById('transcript_text');
-        const audioField = document.getElementById('audio_file');
-        
-        if (tabId === 'text-tab') {
-            transcriptField.disabled = false;
-            audioField.disabled = true;
-            // Don't clear values - user might switch tabs accidentally
-        } else {
-            transcriptField.disabled = true;
-            audioField.disabled = false;
-            // Don't clear values - user might switch tabs accidentally
-        }
+        // NO LONGER DISABLING FIELDS - let server decide which input to use
+        // Disabled fields don't submit their values, causing the transcript to be empty
     });
 });
 
-// On page load, ensure text tab fields are enabled
-document.getElementById('transcript_text').disabled = false;
-document.getElementById('audio_file').disabled = true;
+// Field monitoring for debugging
+const transcriptTextEl = document.getElementById('transcript_text');
 
-// Form validation
+if (transcriptTextEl) {
+    // Debug logging for field state
+    transcriptTextEl.addEventListener('input', function(e) {
+        console.log('[ClearMeet] 📝 Transcript field edited - length:', this.value.length);
+    });
+}
+
+// Form validation and submission
 let formSubmitting = false;
-document.getElementById('inputForm').addEventListener('submit', function(e) {
+const inputForm = document.getElementById('inputForm');
+
+if (inputForm) {
+    inputForm.addEventListener('submit', function(e) {
     console.log('[ClearMeet] ========== FORM SUBMISSION STARTED ==========');
     console.log('[ClearMeet] formSubmitting flag:', formSubmitting);
     
@@ -149,12 +147,14 @@ document.getElementById('inputForm').addEventListener('submit', function(e) {
     console.log('[ClearMeet] Form action:', this.action);
     console.log('[ClearMeet] Form method:', this.method);
     
-    // Re-enable all fields before submission so their values are sent
+    // Get field values (no longer need to re-enable since we're not disabling them)
     const transcriptField = document.getElementById('transcript_text');
     const audioField = document.getElementById('audio_file');
     
-    transcriptField.disabled = false;
-    audioField.disabled = false;
+    console.log('[ClearMeet] 🔍 Field states:');
+    console.log('[ClearMeet]   transcript_text.value length:', transcriptField.value.length);
+    console.log('[ClearMeet]   transcript_text.value preview:', transcriptField.value.substring(0, 100));
+    console.log('[ClearMeet]   audio_file.value:', audioField.value);
     
     const textInput = transcriptField.value.trim();
     const audioInput = audioField.value;
@@ -188,6 +188,7 @@ document.getElementById('inputForm').addEventListener('submit', function(e) {
     
     // Form will now submit naturally
     return true;
-});
+    });
+}
 </script>
 {% endblock %}
