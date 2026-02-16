@@ -85,15 +85,20 @@ class TestAudioTranscriber:
         with pytest.raises(ValueError, match="Unsupported audio format"):
             transcriber.transcribe_audio("test_file.txt")
     
-    @patch('os.path.exists')
+    @patch('core.audio.AudioTranscriber._transcribe_with_chunking')
     @patch('os.path.getsize')
-    def test_transcribe_audio_raises_error_for_oversized_file(self, mock_getsize, mock_exists, transcriber):
-        """Test that oversized file raises ValueError."""
+    @patch('os.path.exists')
+    def test_transcribe_audio_triggers_chunking_for_large_file(self, mock_exists, mock_getsize, mock_chunk, transcriber):
+        """Test that large files (>20MB) trigger chunking instead of raising error."""
         mock_exists.return_value = True
-        mock_getsize.return_value = 30 * 1024 * 1024  # 30MB (over 25MB limit)
+        mock_getsize.return_value = 30 * 1024 * 1024  # 30MB (over 20MB chunk threshold)
+        mock_chunk.return_value = "Chunked transcript"
         
-        with pytest.raises(ValueError, match="Audio file too large"):
-            transcriber.transcribe_audio("huge_audio.mp3")
+        result = transcriber.transcribe_audio("large_audio.mp3", chunk_size_mb=20)
+        
+        # Verify chunking was triggered
+        mock_chunk.assert_called_once_with("large_audio.mp3", None, 20)
+        assert result == "Chunked transcript"
     
     @patch('core.audio.OpenAI')
     @patch('os.path.exists')
@@ -184,12 +189,12 @@ class TestAudioTranscriber:
         assert "unsupported" in message.lower()
     
     def test_validate_audio_file_rejects_oversized_file(self, tmp_path):
-        """Test validation fails for oversized file."""
-        # Create file larger than 25MB limit
+        """Test validation fails for file over configured limit."""
+        # Create file larger than 200MB Flask upload limit
         large_file = tmp_path / "large.mp3"
-        large_file.write_bytes(b'x' * (26 * 1024 * 1024))  # 26MB
+        large_file.write_bytes(b'x' * (201 * 1024 * 1024))  # 201MB (over 200MB limit)
         
-        is_valid, message = AudioTranscriber.validate_audio_file(str(large_file), max_size_mb=25)
+        is_valid, message = AudioTranscriber.validate_audio_file(str(large_file), max_size_mb=200)
         assert is_valid is False
         assert "too large" in message.lower()
     
