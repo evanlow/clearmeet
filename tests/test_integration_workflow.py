@@ -179,7 +179,7 @@ class TestCompleteTextWorkflow:
         with client:
             client.get('/edit')
             from flask import session
-            assert 'transcript' in session
+            # Note: transcript is not stored in session to avoid size limits
             assert 'mom_data' in session
             assert 'mom_text' in session
             assert 'additional_context' in session

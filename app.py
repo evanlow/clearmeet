@@ -169,9 +169,8 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             print(f"[DEBUG] MOM decisions count: {len(mom_data.get('decisions', [])) if mom_data else 0}")
             print(f"[DEBUG] MOM action_items count: {len(mom_data.get('action_items', [])) if mom_data else 0}")
             
-            # Store in session
+            # Store in session (exclude transcript to avoid session size limits)
             print("\n[DEBUG] --- SESSION STORAGE STAGE ---")
-            session['transcript'] = transcript
             session['mom_data'] = mom_data
             session['mom_text'] = llm_generator.render_mom_text(mom_data)
             session['additional_context'] = additional_context
