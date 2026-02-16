@@ -1,0 +1,31 @@
+{
+  "name": "ClearMeet",
+  "description": "AI-powered Meeting Minutes of Meeting (MOM) generator from audio transcripts",
+  "repository": "https://github.com/evanlow/clearmeet",
+  "buildpacks": [
+    {
+      "url": "https://github.com/jonathanong/heroku-buildpack-ffmpeg-latest.git"
+    },
+    {
+      "url": "heroku/python"
+    }
+  ],
+  "env": {
+    "OPENAI_API_KEY": {
+      "description": "Your OpenAI API key for GPT-4 and Whisper access",
+      "required": true
+    },
+    "FLASK_ENV": {
+      "description": "Flask environment (production recommended for Heroku)",
+      "value": "production",
+      "required": false
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "basic"
+    }
+  },
+  "addons": []
+}
