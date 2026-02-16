@@ -35,7 +35,10 @@
                         class="form-control"
                         placeholder="Paste your meeting transcript here...&#10;&#10;Example:&#10;Alice: Good morning everyone. Today we need to decide on...&#10;Bob: I recommend we increase...&#10;Alice: Great point. Let's also discuss..."
                     ></textarea>
-                    <small class="form-text">Minimum 50 words required</small>
+                    <div class="word-counter">
+                        <span id="word-count" class="word-count-insufficient">0 words</span>
+                        <span class="word-requirement"> / 50+ words recommended for better results</span>
+                    </div>
                 </div>
             </div>
             
@@ -51,6 +54,9 @@
                         accept=".mp3,.wav,.m4a,.ogg,.webm,.mp4,.mpeg,.mpga"
                     >
                     <small class="form-text">Supported formats: MP3, WAV, M4A, OGG (max 25MB)</small>
+                    <div class="info-note" style="margin-top: 1rem; padding: 0.75rem; background-color: #eff6ff; border-left: 3px solid #2563eb; border-radius: 0.25rem;">
+                        <strong>How it works:</strong> Your audio will be transcribed using OpenAI Whisper, then processed to generate the MOM. No need to type a transcript!
+                    </div>
                 </div>
             </div>
         </div>
@@ -90,9 +96,14 @@
 
 {% block extra_js %}
 <script>
+console.log('[ClearMeet] JavaScript loaded successfully');
+console.log('[ClearMeet] Current URL:', window.location.href);
+console.log('[ClearMeet] Form element:', document.getElementById('inputForm'));
+
 // Tab switching
 document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', function() {
+        console.log('[ClearMeet] Tab clicked:', this.dataset.tab);
         // Remove active class from all tabs and contents
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -109,11 +120,11 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
         if (tabId === 'text-tab') {
             transcriptField.disabled = false;
             audioField.disabled = true;
-            audioField.value = '';
+            // Don't clear values - user might switch tabs accidentally
         } else {
             transcriptField.disabled = true;
             audioField.disabled = false;
-            transcriptField.value = '';
+            // Don't clear values - user might switch tabs accidentally
         }
     });
 });
@@ -123,19 +134,60 @@ document.getElementById('transcript_text').disabled = false;
 document.getElementById('audio_file').disabled = true;
 
 // Form validation
+let formSubmitting = false;
 document.getElementById('inputForm').addEventListener('submit', function(e) {
-    // Re-enable all fields before submission so their values are sent
-    document.getElementById('transcript_text').disabled = false;
-    document.getElementById('audio_file').disabled = false;
+    console.log('[ClearMeet] ========== FORM SUBMISSION STARTED ==========');
+    console.log('[ClearMeet] formSubmitting flag:', formSubmitting);
     
-    const textInput = document.getElementById('transcript_text').value.trim();
-    const audioInput = document.getElementById('audio_file').value;
+    if (formSubmitting) {
+        console.log('[ClearMeet] ⚠️ Form already submitting, preventing duplicate');
+        e.preventDefault();
+        return false;
+    }
+    
+    console.log('[ClearMeet] Event:', e);
+    console.log('[ClearMeet] Form action:', this.action);
+    console.log('[ClearMeet] Form method:', this.method);
+    
+    // Re-enable all fields before submission so their values are sent
+    const transcriptField = document.getElementById('transcript_text');
+    const audioField = document.getElementById('audio_file');
+    
+    transcriptField.disabled = false;
+    audioField.disabled = false;
+    
+    const textInput = transcriptField.value.trim();
+    const audioInput = audioField.value;
+    const additionalContext = document.getElementById('additional_context')?.value || '';
+    
+    console.log('[ClearMeet] Text input length:', textInput.length);
+    console.log('[ClearMeet] Text input preview:', textInput.substring(0, 100));
+    console.log('[ClearMeet] Audio input:', audioInput);
+    console.log('[ClearMeet] Additional context:', additionalContext);
+    console.log('[ClearMeet] Active tab:', document.querySelector('.tab-btn.active')?.textContent.trim());
     
     if (!textInput && !audioInput) {
+        console.log('[ClearMeet] ❌ VALIDATION FAILED: No input provided');
         e.preventDefault();
         alert('Please provide either a transcript or upload an audio file');
         return false;
     }
+    
+    formSubmitting = true;
+    console.log('[ClearMeet] ✓ Validation passed, submitting form...');
+    console.log('[ClearMeet] Form data being submitted:');
+    const formData = new FormData(this);
+    for (let [key, value] of formData.entries()) {
+        if (typeof value === 'string') {
+            console.log(`[ClearMeet]   ${key}: ${value.substring(0, 100)}${value.length > 100 ? '...' : ''}`);
+        } else {
+            console.log(`[ClearMeet]   ${key}: [File: ${value.name}]`);
+        }
+    }
+    console.log('[ClearMeet] ==========================================');
+    
+    // Form will now submit naturally
+    return true;
 });
 </script>
 {% endblock %}

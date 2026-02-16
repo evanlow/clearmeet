@@ -89,13 +89,16 @@ class TranscriptParser:
         return sorted(list(speakers))
     
     @staticmethod
-    def validate_transcript(text: str, min_words: int = 50) -> tuple[bool, str]:
+    def validate_transcript(text: str, min_words: int = 10) -> tuple[bool, str]:
         """
         Validate that transcript meets minimum quality requirements.
         
+        Note: min_words is set to 10 as a sanity check. Short meetings are valid.
+        The 50-word guideline in UI is a recommendation for better AI results.
+        
         Args:
             text: Transcript text
-            min_words: Minimum word count required
+            min_words: Minimum word count (default 10 for sanity check)
             
         Returns:
             Tuple of (is_valid, error_message)
@@ -105,7 +108,7 @@ class TranscriptParser:
         
         words = text.split()
         if len(words) < min_words:
-            return False, f"Transcript too short (minimum {min_words} words, got {len(words)})"
+            return False, f"Transcript too short (minimum {min_words} words for processing, got {len(words)})"
         
         # Check if it's mostly gibberish (very high punctuation ratio)
         if len(text) > 0:

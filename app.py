@@ -64,27 +64,42 @@ def create_app(config_name: Optional[str] = None) -> Flask:
         session.clear()
         return render_template('index.html')
     
-    @app.route('/process', methods=['POST'])
+    @app.route('/process', methods=['GET', 'POST'])
     def process_input():
         """
         Process transcript input (text or audio file).
         
         Returns redirect to edit page with structured MOM data.
         """
+        if request.method == 'GET':
+            print("[DEBUG] ⚠️ WARNING: GET request to /process - redirecting to index")
+            flash('Please use the form to submit your transcript', 'warning')
+            return redirect(url_for('index'))
+        
         try:
-            print("[DEBUG] Starting process_input")
+            print("\n" + "="*80)
+            print("[DEBUG] ===== PROCESS INPUT STARTED =====")
+            print(f"[DEBUG] Request method: {request.method}")
+            print(f"[DEBUG] Request URL: {request.url}")
             print(f"[DEBUG] Form data keys: {list(request.form.keys())}")
             print(f"[DEBUG] Files keys: {list(request.files.keys())}")
+            print(f"[DEBUG] Content-Type: {request.content_type}")
             print(f"[DEBUG] transcript_text in form: {'transcript_text' in request.form}")
             if 'transcript_text' in request.form:
-                print(f"[DEBUG] transcript_text value: '{request.form['transcript_text'][:100]}'")
+                transcript_preview = request.form['transcript_text'][:200] if len(request.form['transcript_text']) > 200 else request.form['transcript_text']
+                print(f"[DEBUG] transcript_text value (first 200 chars): '{transcript_preview}'")
+                print(f"[DEBUG] transcript_text length: {len(request.form['transcript_text'])}")
+            print("="*80 + "\n")
             transcript = None
             
             # Check if audio file uploaded
+            print("[DEBUG] Checking for audio file...")
             if 'audio_file' in request.files:
                 audio_file = request.files['audio_file']
+                print(f"[DEBUG] Audio file found: {audio_file.filename if audio_file else 'None'}")
                 
                 if audio_file and audio_file.filename:
+                    print(f"[DEBUG] Processing audio file: {audio_file.filename}")
                     # Secure filename
                     filename = secure_filename(audio_file.filename)
                     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -116,44 +131,74 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             elif 'transcript_text' in request.form:
                 transcript = request.form['transcript_text']
                 print(f"[DEBUG] Text transcript received, length: {len(transcript) if transcript else 0}")
+                print(f"[DEBUG] Text transcript (first 100 chars): {transcript[:100] if transcript else 'EMPTY'}")
             
             else:
-                print("[DEBUG] No transcript or audio file provided")
+                print("[DEBUG] ❌ ERROR: No transcript or audio file provided")
+                print(f"[DEBUG] Form keys: {list(request.form.keys())}")
+                print(f"[DEBUG] File keys: {list(request.files.keys())}")
                 flash('Please provide either a transcript or upload an audio file', 'error')
                 return redirect(url_for('index'))
             
             # Validate transcript
-            print("[DEBUG] Cleaning transcript")
+            print("\n[DEBUG] --- VALIDATION STAGE ---")
+            print("[DEBUG] Cleaning transcript...")
             transcript = TranscriptParser.clean_transcript(transcript)
-            print(f"[DEBUG] Cleaned transcript length: {len(transcript)}")
-            print("[DEBUG] Validating transcript")
+            print(f"[DEBUG] ✓ Cleaned transcript length: {len(transcript)}")
+            print(f"[DEBUG] Cleaned transcript preview: {transcript[:150] if len(transcript) > 150 else transcript}")
+            print("[DEBUG] Validating transcript...")
             is_valid, error_msg = TranscriptParser.validate_transcript(transcript)
             
             if not is_valid:
-                print(f"[DEBUG] Validation failed: {error_msg}")
+                print(f"[DEBUG] ❌ VALIDATION FAILED: {error_msg}")
                 flash(f"Transcript validation failed: {error_msg}", 'error')
+                print(f"[DEBUG] Redirecting to index due to validation failure")
                 return redirect(url_for('index'))
             
+            print(f"[DEBUG] ✓ Validation passed")
+            
             # Generate MOM using LLM
-            print("[DEBUG] Generating MOM with LLM")
+            print("\n[DEBUG] --- AI GENERATION STAGE ---")
+            print("[DEBUG] Calling OpenAI to generate MOM...")
             additional_context = request.form.get('additional_context', '')
+            print(f"[DEBUG] Additional context: '{additional_context[:100] if additional_context else 'None'}'")
+            
             mom_data = llm_generator.generate_mom(transcript, additional_context or None)
-            print(f"[DEBUG] MOM generated successfully: {list(mom_data.keys()) if mom_data else None}")
+            print(f"[DEBUG] ✓ MOM generated successfully")
+            print(f"[DEBUG] MOM data keys: {list(mom_data.keys()) if mom_data else None}")
+            print(f"[DEBUG] MOM objective: {mom_data.get('objective', 'N/A')[:100] if mom_data else 'N/A'}")
+            print(f"[DEBUG] MOM attendees count: {len(mom_data.get('attendees', [])) if mom_data else 0}")
+            print(f"[DEBUG] MOM decisions count: {len(mom_data.get('decisions', [])) if mom_data else 0}")
+            print(f"[DEBUG] MOM action_items count: {len(mom_data.get('action_items', [])) if mom_data else 0}")
             
             # Store in session
+            print("\n[DEBUG] --- SESSION STORAGE STAGE ---")
             session['transcript'] = transcript
             session['mom_data'] = mom_data
             session['mom_text'] = llm_generator.render_mom_text(mom_data)
             session['additional_context'] = additional_context
+            print(f"[DEBUG] ✓ Session data stored")
+            print(f"[DEBUG] Session keys: {list(session.keys())}")
             
             flash('MOM generated successfully! Please review and edit as needed.', 'success')
+            print(f"\n[DEBUG] ✓ SUCCESS - Redirecting to /edit")
+            print(f"[DEBUG] Redirect URL: {url_for('edit')}")
+            print("="*80 + "\n")
             return redirect(url_for('edit'))
             
         except Exception as e:
             import traceback
             error_details = traceback.format_exc()
-            print(f"[ERROR] Exception in process_input: {str(e)}")
-            print(f"[ERROR] Traceback:\n{error_details}")
+            print("\n" + "="*80)
+            print("[ERROR] ❌❌❌ EXCEPTION OCCURRED ❌❌❌")
+            print(f"[ERROR] Exception type: {type(e).__name__}")
+            print(f"[ERROR] Exception message: {str(e)}")
+            print(f"[ERROR] Full traceback:\n{error_details}")
+            print(f"[ERROR] Request method: {request.method}")
+            print(f"[ERROR] Request URL: {request.url}")
+            print(f"[ERROR] Form data keys: {list(request.form.keys())}")
+            print(f"[ERROR] Files keys: {list(request.files.keys())}")
+            print("="*80 + "\n")
             flash(f"Error processing input: {str(e)}", 'error')
             return redirect(url_for('index'))
     

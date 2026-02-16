@@ -11,6 +11,67 @@ document.addEventListener('DOMContentLoaded', function() {
             setTimeout(() => alert.remove(), 500);
         }, 5000);
     });
+    
+    // Word counter for transcript textarea
+    const transcriptTextarea = document.getElementById('transcript_text');
+    const wordCountDisplay = document.getElementById('word-count');
+    
+    if (transcriptTextarea && wordCountDisplay) {
+        function countWords(text) {
+            // Trim whitespace and split by whitespace
+            const words = text.trim().split(/\s+/);
+            // Return 0 if only empty string, otherwise return word count
+            return text.trim().length === 0 ? 0 : words.length;
+        }
+        
+        function updateWordCount() {
+            const text = transcriptTextarea.value;
+            const wordCount = countWords(text);
+            const recommendedWords = 50;
+            
+            // Update display text
+            wordCountDisplay.textContent = `${wordCount} word${wordCount !== 1 ? 's' : ''}`;
+            
+            // Update styling based on word count (50+ is recommended, 10+ is minimum)
+            if (wordCount >= recommendedWords) {
+                wordCountDisplay.classList.remove('word-count-insufficient');
+                wordCountDisplay.classList.add('word-count-sufficient');
+            } else if (wordCount >= 10) {
+                // Between 10-49 words: acceptable but show as warning
+                wordCountDisplay.classList.remove('word-count-sufficient');
+                wordCountDisplay.classList.add('word-count-insufficient');
+            } else {
+                // Less than 10 words: too short
+                wordCountDisplay.classList.remove('word-count-sufficient');
+                wordCountDisplay.classList.add('word-count-insufficient');
+            }
+        }
+        
+        // Update on input
+        transcriptTextarea.addEventListener('input', updateWordCount);
+        
+        // Update on page load (in case there's pre-filled content)
+        updateWordCount();
+    }
+    
+    // Handle tab switching to show/hide word counter
+    const wordCounter = document.querySelector('.word-counter');
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    
+    tabButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const tabId = this.dataset.tab;
+            
+            // Show word counter only on text tab, hide on audio tab
+            if (wordCounter) {
+                if (tabId === 'text-tab') {
+                    wordCounter.style.display = 'flex';
+                } else {
+                    wordCounter.style.display = 'none';
+                }
+            }
+        });
+    });
 });
 
 // Utility function for element visibility

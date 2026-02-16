@@ -464,3 +464,29 @@ textarea.form-control {
         width: 100%;
     }
 }
+
+/* Word Counter Styles */
+.word-counter {
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.word-requirement {
+    color: var(--text-muted);
+}
+
+#word-count {
+    font-weight: 600;
+    transition: color 0.2s ease;
+}
+
+.word-count-insufficient {
+    color: var(--error-color);
+}
+
+.word-count-sufficient {
+    color: var(--success-color);
+}
