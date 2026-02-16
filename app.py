@@ -242,12 +242,17 @@ def create_app(config_name: Optional[str] = None) -> Flask:
                 # Update structured data
                 mom_data = session.get('mom_data', {})
                 
+                # Update title and date
+                mom_data['title'] = request.form.get('title', '')
+                mom_data['date'] = request.form.get('date', '')
+
                 # Update objective
                 mom_data['objective'] = request.form.get('objective', '')
                 
                 # Update attendees
                 attendees_str = request.form.get('attendees', '')
-                mom_data['attendees'] = [a.strip() for a in attendees_str.split(',') if a.strip()]
+                attendees_list = [a.strip() for a in attendees_str.split(',') if a.strip()]
+                mom_data['attendees'] = attendees_list if attendees_list else None
                 
                 # Update decisions
                 decisions = []
@@ -255,27 +260,44 @@ def create_app(config_name: Optional[str] = None) -> Flask:
                     if key.startswith('decision_'):
                         decision = request.form.get(key, '').strip()
                         if decision:
-                            decisions.append(decision)
+                            decisions.append({'text': decision})
                 mom_data['decisions'] = decisions
                 
                 # Update action items
                 action_items = []
                 action_count = int(request.form.get('action_count', 0))
                 for i in range(action_count):
-                    task = request.form.get(f'action_task_{i}', '').strip()
+                    action = request.form.get(f'action_action_{i}', '').strip()
                     owner = request.form.get(f'action_owner_{i}', '').strip()
                     deadline = request.form.get(f'action_deadline_{i}', '').strip() or None
-                    
-                    if task:  # Only add if task is not empty
+                    status = request.form.get(f'action_status_{i}', '').strip() or 'Open'
+
+                    if action:  # Only add if action is not empty
                         action_items.append({
-                            'task': task,
+                            'action': action,
                             'owner': owner or 'Unassigned',
-                            'deadline': deadline
+                            'deadline': deadline,
+                            'status': status
                         })
                 mom_data['action_items'] = action_items
-                
-                # Update summary
-                mom_data['summary'] = request.form.get('summary', '')
+
+                # Update parking lot
+                parking_lot_str = request.form.get('parking_lot', '')
+                if parking_lot_str.strip():
+                    mom_data['parking_lot'] = [p.strip() for p in parking_lot_str.split(',') if p.strip()]
+                else:
+                    mom_data['parking_lot'] = None
+
+                # Update notes
+                notes = request.form.get('notes', '').strip()
+                mom_data['notes'] = notes if notes else None
+
+                # Update confidentiality flags
+                flags_str = request.form.get('confidentiality_flags', '')
+                if flags_str.strip():
+                    mom_data['confidentiality_flags'] = [f.strip() for f in flags_str.split(',') if f.strip()]
+                else:
+                    mom_data['confidentiality_flags'] = None
                 
                 # Store updated data
                 session['mom_data'] = mom_data
@@ -361,10 +383,12 @@ def create_app(config_name: Optional[str] = None) -> Flask:
                 'meeting_title': 'Meeting Minutes'
             }
             
-            # Extract objective as title if available
+            # Extract title/objective for PDF header
             if not session.get('text_override', False):
                 mom_data = session.get('mom_data', {})
-                if mom_data.get('objective'):
+                if mom_data.get('title'):
+                    metadata['meeting_title'] = mom_data['title'][:50]
+                elif mom_data.get('objective'):
                     metadata['meeting_title'] = mom_data['objective'][:50]  # Truncate if too long
             
             # Export to PDF

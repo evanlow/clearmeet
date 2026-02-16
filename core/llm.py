@@ -7,8 +7,6 @@ from typing import Optional, Any
 import json
 from openai import OpenAI
 from openai import OpenAIError
-from pydantic import ValidationError
-
 from core.schema import MeetingMOM, validate_mom_dict
 
 
@@ -41,11 +39,15 @@ class MOMGenerator:
             
         Returns:
             Structured MOM data as dictionary with keys:
+            - title: Meeting title
+            - date: Meeting date
             - objective: Meeting objective/purpose
             - decisions: List of decisions made
             - action_items: List of action items with owner and deadline
             - attendees: List of attendees (if extractable)
-            - summary: Brief meeting summary
+            - parking_lot: List of deferred items (optional)
+            - notes: Additional notes (optional)
+            - confidentiality_flags: Confidentiality tags (optional)
             
         Raises:
             ValueError: If transcript is empty
@@ -59,13 +61,15 @@ class MOMGenerator:
         system_prompt = f"""You are an expert at creating clear, concise Minutes of Meeting (MOM).
         
 Your task is to analyze meeting transcripts and extract:
-1. Meeting objective/purpose
-2. Key decisions made (be specific)
-3. Action items with owners and deadlines
-4. List of attendees (if mentioned)
-5. Brief summary of discussion
+1. Meeting title and date
+2. Meeting objective/purpose
+3. Key decisions made (be specific)
+4. Action items with owners and deadlines
+5. List of attendees (if mentioned)
+6. Parking lot items (if mentioned)
+7. Notes or confidentiality flags (if relevant)
 
-Return your response as valid JSON with this exact structure:
+    Return your response as valid JSON with this exact structure:
 {json_schema}
 
 Be specific and actionable. Use professional business language.
@@ -99,7 +103,7 @@ CRITICAL: Ensure 'owner' fields are actual names, not placeholders like 'TBD' or
                 validated_mom = validate_mom_dict(mom_data)
                 # Return dict for backward compatibility
                 return validated_mom.model_dump(exclude_none=True)
-            except ValidationError as e:
+            except ValueError as e:
                 raise ValueError(f"Invalid MOM structure returned from API: {e}")
             
         except json.JSONDecodeError as e:
@@ -125,6 +129,16 @@ CRITICAL: Ensure 'owner' fields are actual names, not placeholders like 'TBD' or
         lines.append("=" * 60)
         lines.append("")
         
+        # Title and date
+        if mom_data.get('title'):
+            lines.append("MEETING TITLE:")
+            lines.append(mom_data['title'])
+            lines.append("")
+        if mom_data.get('date'):
+            lines.append("MEETING DATE:")
+            lines.append(mom_data['date'])
+            lines.append("")
+
         # Objective
         if mom_data.get('objective'):
             lines.append("MEETING OBJECTIVE:")
@@ -138,29 +152,46 @@ CRITICAL: Ensure 'owner' fields are actual names, not placeholders like 'TBD' or
                 lines.append(f"  • {attendee}")
             lines.append("")
         
-        # Summary
-        if mom_data.get('summary'):
-            lines.append("SUMMARY:")
-            lines.append(mom_data['summary'])
-            lines.append("")
-        
         # Decisions
         if mom_data.get('decisions'):
             lines.append("DECISIONS MADE:")
             for i, decision in enumerate(mom_data['decisions'], 1):
-                lines.append(f"  {i}. {decision}")
+                text = decision.get('text') if isinstance(decision, dict) else str(decision)
+                lines.append(f"  {i}. {text}")
             lines.append("")
         
         # Action Items
         if mom_data.get('action_items'):
             lines.append("ACTION ITEMS:")
             for i, item in enumerate(mom_data['action_items'], 1):
-                task = item.get('task', 'N/A')
+                action = item.get('action', 'N/A')
                 owner = item.get('owner', 'Unassigned')
                 deadline = item.get('deadline') or 'No deadline specified'
-                lines.append(f"  {i}. {task}")
+                status = item.get('status') or 'Open'
+                lines.append(f"  {i}. {action}")
                 lines.append(f"     Owner: {owner}")
                 lines.append(f"     Deadline: {deadline}")
+                lines.append(f"     Status: {status}")
+            lines.append("")
+
+        # Parking lot
+        if mom_data.get('parking_lot'):
+            lines.append("PARKING LOT:")
+            for i, item in enumerate(mom_data['parking_lot'], 1):
+                lines.append(f"  {i}. {item}")
+            lines.append("")
+
+        # Notes
+        if mom_data.get('notes'):
+            lines.append("NOTES:")
+            lines.append(mom_data['notes'])
+            lines.append("")
+
+        # Confidentiality
+        if mom_data.get('confidentiality_flags'):
+            lines.append("CONFIDENTIALITY:")
+            for flag in mom_data['confidentiality_flags']:
+                lines.append(f"  • {flag}")
             lines.append("")
         
         lines.append("=" * 60)

@@ -3,8 +3,10 @@ MOM validation logic.
 
 Enforces checklist validation before export.
 """
-from typing import Optional
+from typing import Union
 from dataclasses import dataclass
+
+from core.schema import MeetingMOM
 
 
 @dataclass
@@ -29,6 +31,16 @@ class MOMValidator:
         """
         return [
             ValidationItem(
+                id="title_present",
+                label="Meeting title is clearly stated",
+                required=True
+            ),
+            ValidationItem(
+                id="date_present",
+                label="Meeting date is provided",
+                required=True
+            ),
+            ValidationItem(
                 id="objective_present",
                 label="Meeting objective is clearly stated",
                 required=True
@@ -36,7 +48,7 @@ class MOMValidator:
             ValidationItem(
                 id="attendees_listed",
                 label="All attendees are listed",
-                required=True
+                required=False
             ),
             ValidationItem(
                 id="decisions_documented",
@@ -66,7 +78,7 @@ class MOMValidator:
         ]
     
     @staticmethod
-    def validate_mom_content(mom_data: dict) -> tuple[bool, list[str]]:
+    def validate_mom_content(mom_data: Union[dict, MeetingMOM]) -> tuple[bool, list[str]]:
         """
         Validate MOM content for completeness.
         
@@ -77,14 +89,25 @@ class MOMValidator:
             Tuple of (is_valid, list_of_issues)
         """
         issues = []
+
+        if isinstance(mom_data, MeetingMOM):
+            mom_data = mom_data.model_dump(exclude_none=True)
         
+        # Check title
+        if not mom_data.get('title') or len(mom_data['title'].strip()) < 3:
+            issues.append("Meeting title is missing or too short")
+
+        # Check date
+        if not mom_data.get('date') or len(mom_data['date'].strip()) < 4:
+            issues.append("Meeting date is missing or too short")
+
         # Check objective
         if not mom_data.get('objective') or len(mom_data['objective'].strip()) < 10:
             issues.append("Meeting objective is missing or too short")
         
-        # Check attendees
-        if not mom_data.get('attendees') or len(mom_data['attendees']) == 0:
-            issues.append("No attendees listed")
+        # Check attendees (optional but recommended)
+        if mom_data.get('attendees') is not None and len(mom_data.get('attendees', [])) == 0:
+            issues.append("Attendees list is present but empty")
         
         # Check decisions
         if not mom_data.get('decisions') or len(mom_data['decisions']) == 0:
@@ -94,14 +117,10 @@ class MOMValidator:
         action_items = mom_data.get('action_items', [])
         if action_items:
             for i, item in enumerate(action_items, 1):
-                if not item.get('task') or len(item['task'].strip()) < 5:
-                    issues.append(f"Action item {i} has missing or unclear task")
+                if not item.get('action') or len(item['action'].strip()) < 3:
+                    issues.append(f"Action item {i} has missing or unclear action")
                 if not item.get('owner') or item['owner'].strip() in ['', 'N/A', 'None', 'Unassigned']:
                     issues.append(f"Action item {i} has no owner assigned")
-        
-        # Check summary
-        if not mom_data.get('summary') or len(mom_data['summary'].strip()) < 20:
-            issues.append("Meeting summary is missing or too brief")
         
         is_valid = len(issues) == 0
         return is_valid, issues

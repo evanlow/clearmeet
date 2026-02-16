@@ -11,7 +11,6 @@ Tests cover:
 import pytest
 import json
 from unittest.mock import Mock, patch, MagicMock
-from pydantic import ValidationError
 from core.llm import MOMGenerator
 from core.schema import validate_mom_dict
 
@@ -45,25 +44,26 @@ class TestMOMGenerator:
     def sample_mom_data(self):
         """Provide sample structured MOM data."""
         return {
+            "title": "Q1 Budget Meeting",
+            "date": "2026-02-16",
             "objective": "Decide on Q1 budget allocation",
             "decisions": [
-                "Increase marketing spend by 15%",
-                "Reduce travel expenses"
+                {"text": "Increase marketing spend by 15%"},
+                {"text": "Reduce travel expenses"}
             ],
             "action_items": [
                 {
-                    "task": "Update budget spreadsheet",
+                    "action": "Update budget spreadsheet",
                     "owner": "Carol",
                     "deadline": "Friday"
                 },
                 {
-                    "task": "Review marketing strategy",
+                    "action": "Review marketing strategy",
                     "owner": "Bob",
                     "deadline": "Wednesday"
                 }
             ],
-            "attendees": ["Alice", "Bob", "Carol"],
-            "summary": "Team discussed Q1 budget allocation and decided to increase marketing spend while reducing travel expenses. Action items assigned to Carol and Bob."
+            "attendees": ["Alice", "Bob", "Carol"]
         }
     
     def test_initialization_with_valid_key(self, mock_api_key):
@@ -105,11 +105,12 @@ class TestMOMGenerator:
         
         # Verify structure
         assert isinstance(result, dict)
+        assert "title" in result
+        assert "date" in result
         assert "objective" in result
         assert "decisions" in result
         assert "action_items" in result
         assert "attendees" in result
-        assert "summary" in result
     
     def test_generate_mom_raises_error_with_empty_transcript(self, generator):
         """Test that empty transcript raises ValueError."""
@@ -178,37 +179,40 @@ class TestMOMGenerator:
     def test_validate_mom_structure_rejects_missing_keys(self):
         """Test validation rejects data with missing keys."""
         incomplete_data = {
+            "title": "Test Meeting",
             "objective": "Test objective",
             "decisions": []
-            # Missing action_items, attendees, summary
+            # Missing date, action_items
         }
-        with pytest.raises(ValidationError):
+        with pytest.raises(ValueError):
             validate_mom_dict(incomplete_data)
     
     def test_validate_mom_structure_rejects_wrong_types(self):
         """Test validation rejects data with wrong types."""
         wrong_types = {
+            "title": "Test Meeting",
+            "date": "2026-02-16",
             "objective": "Test",
             "decisions": "Should be a list",  # Wrong type
             "action_items": [],
-            "attendees": [],
-            "summary": "Test"
+            "attendees": []
         }
-        with pytest.raises(ValidationError):
+        with pytest.raises(ValueError):
             validate_mom_dict(wrong_types)
     
     def test_validate_mom_structure_validates_action_items(self):
         """Test validation checks action item structure."""
         invalid_action_items = {
-            "objective": "Test",
+            "title": "Test Meeting",
+            "date": "2026-02-16",
+            "objective": "Test objective",
             "decisions": [],
             "action_items": [
-                {"task": "Do something"}  # Missing owner and deadline
+                {"action": "Do something"}  # Missing owner
             ],
-            "attendees": [],
-            "summary": "Test"
+            "attendees": []
         }
-        with pytest.raises(ValidationError):
+        with pytest.raises(ValueError):
             validate_mom_dict(invalid_action_items)
     
     def test_render_mom_text_with_complete_data(self, sample_mom_data):
@@ -218,16 +222,17 @@ class TestMOMGenerator:
         
         # Verify all sections present
         assert "MINUTES OF MEETING" in text
+        assert "MEETING TITLE:" in text
+        assert "MEETING DATE:" in text
         assert "MEETING OBJECTIVE:" in text
         assert "ATTENDEES:" in text
-        assert "SUMMARY:" in text
         assert "DECISIONS MADE:" in text
         assert "ACTION ITEMS:" in text
         
         # Verify content present
         assert sample_mom_data["objective"] in text
-        assert sample_mom_data["decisions"][0] in text
-        assert sample_mom_data["action_items"][0]["task"] in text
+        assert sample_mom_data["decisions"][0]["text"] in text
+        assert sample_mom_data["action_items"][0]["action"] in text
     
     def test_render_mom_text_handles_empty_data(self):
         """Test rendering with empty MOM data."""
@@ -254,13 +259,14 @@ class TestMOMGenerator:
         """Test rendering action item with null deadline."""
         generator = MOMGenerator(api_key="test-key")
         mom_data = {
+            "title": "Test Meeting",
+            "date": "2026-02-16",
             "objective": "Test",
             "decisions": [],
             "action_items": [
-                {"task": "Do something", "owner": "Alice", "deadline": None}
+                {"action": "Do something", "owner": "Alice", "deadline": None}
             ],
-            "attendees": ["Alice"],
-            "summary": "Test summary"
+            "attendees": ["Alice"]
         }
         text = generator.render_mom_text(mom_data)
         assert "No deadline specified" in text
@@ -269,18 +275,18 @@ class TestMOMGenerator:
         """Test rendering with some empty sections."""
         generator = MOMGenerator(api_key="test-key")
         mom_data = {
+            "title": "Test Meeting",
+            "date": "2026-02-16",
             "objective": "Test objective",
             "decisions": [],  # Empty
             "action_items": [],  # Empty
-            "attendees": [],  # Empty
-            "summary": "Brief summary"
+            "attendees": []  # Empty
         }
         text = generator.render_mom_text(mom_data)
         
         # Should include non-empty sections
         assert "MEETING OBJECTIVE:" in text
         assert "Test objective" in text
-        assert "Brief summary" in text
         
         # Empty sections should not have content entries
         # (but headers may still appear depending on implementation)

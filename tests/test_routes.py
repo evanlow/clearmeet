@@ -51,13 +51,14 @@ class TestProcessRoute:
         """Test processing a valid transcript."""
         # Setup mock
         mock_mom_data = {
+            'title': 'Test Meeting',
+            'date': '2026-02-16',
             'objective': 'Test objective',
             'attendees': ['Alice', 'Bob'],
-            'decisions': ['Decision 1'],
+            'decisions': [{'text': 'Decision 1'}],
             'action_items': [
-                {'task': 'Task 1', 'owner': 'Alice', 'deadline': '2026-03-01'}
-            ],
-            'summary': 'Test summary'
+                {'action': 'Task 1', 'owner': 'Alice', 'deadline': '2026-03-01'}
+            ]
         }
         mock_generate.return_value = mock_mom_data
         
@@ -101,11 +102,12 @@ class TestProcessRoute:
     def test_process_stores_data_in_session(self, mock_generate, client):
         """Test that processed data is stored in session."""
         mock_mom_data = {
-            'objective': 'Test',
+            'title': 'Test Meeting',
+            'date': '2026-02-16',
+            'objective': 'Test objective',
             'attendees': ['Alice'],
             'decisions': [],
-            'action_items': [],
-            'summary': 'Test'
+            'action_items': []
         }
         mock_generate.return_value = mock_mom_data
         
@@ -136,11 +138,12 @@ class TestEditRoute:
         """Test that edit page loads with session data."""
         with client.session_transaction() as sess:
             sess['mom_data'] = {
-                'objective': 'Test',
+                'title': 'Test Meeting',
+                'date': '2026-02-16',
+                'objective': 'Test objective',
                 'attendees': ['Alice'],
                 'decisions': [],
-                'action_items': [],
-                'summary': 'Test'
+                'action_items': []
             }
             sess['mom_text'] = 'Test MOM text'
         
@@ -160,24 +163,27 @@ class TestUpdateRoute:
         
         with client.session_transaction() as sess:
             sess['mom_data'] = {
+                'title': 'Old title',
+                'date': '2026-02-01',
                 'objective': 'Old objective',
                 'attendees': [],
                 'decisions': [],
-                'action_items': [],
-                'summary': ''
+                'action_items': []
             }
         
         with client:
             response = client.post('/update', data={
+                'title': 'New title',
+                'date': '2026-02-16',
                 'objective': 'New objective',
                 'attendees': 'Alice, Bob',
                 'decision_0': 'Decision 1',
                 'decision_1': 'Decision 2',
                 'action_count': '1',
-                'action_task_0': 'Task 1',
+                'action_action_0': 'Task 1',
                 'action_owner_0': 'Alice',
                 'action_deadline_0': '2026-03-01',
-                'summary': 'New summary'
+                'action_status_0': 'Open'
             }, follow_redirects=False)
             
             assert response.status_code == 302
@@ -185,19 +191,23 @@ class TestUpdateRoute:
             
             from flask import session
             assert session['mom_data']['objective'] == 'New objective'
-            assert session['mom_data']['decisions'] == ['Decision 1', 'Decision 2']
-            assert session['mom_data']['action_items'][0]['task'] == 'Task 1'
+            assert session['mom_data']['decisions'] == [
+                {'text': 'Decision 1'},
+                {'text': 'Decision 2'}
+            ]
+            assert session['mom_data']['action_items'][0]['action'] == 'Task 1'
             assert session['text_override'] is False
 
     def test_update_with_text_override(self, client):
         """Test updating MOM with full text override."""
         with client.session_transaction() as sess:
             sess['mom_data'] = {
+                'title': 'Old title',
+                'date': '2026-02-01',
                 'objective': 'Old objective',
                 'attendees': [],
                 'decisions': [],
-                'action_items': [],
-                'summary': ''
+                'action_items': []
             }
             sess['mom_text'] = 'Old MOM text'
         
@@ -230,11 +240,12 @@ class TestValidateRoute:
         """Test that validate page loads with session data."""
         with client.session_transaction() as sess:
             sess['mom_data'] = {
+                'title': 'Test Meeting',
+                'date': '2026-02-16',
                 'objective': 'Test objective that is long enough',
                 'attendees': ['Alice'],
-                'decisions': ['Decision 1'],
-                'action_items': [],
-                'summary': 'Test summary that is long enough for validation'
+                'decisions': [{'text': 'Decision 1'}],
+                'action_items': []
             }
             sess['mom_text'] = 'Test MOM text'
         
@@ -256,11 +267,12 @@ class TestExportRoute:
         with client.session_transaction() as sess:
             sess['mom_text'] = 'Test MOM text'
             sess['mom_data'] = {
-                'objective': 'Test',
+                'title': 'Test Meeting',
+                'date': '2026-02-16',
+                'objective': 'Test objective',
                 'attendees': [],
                 'decisions': [],
-                'action_items': [],
-                'summary': ''
+                'action_items': []
             }
         
         response = client.get('/export_mom')

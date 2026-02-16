@@ -17,6 +17,31 @@
         </div>
         
         <div class="form-group">
+            <label for="title">Meeting Title *</label>
+            <input 
+                type="text" 
+                name="title" 
+                id="title" 
+                class="form-control"
+                value="{{ mom_data.title }}"
+                required
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="date">Meeting Date *</label>
+            <input 
+                type="text" 
+                name="date" 
+                id="date" 
+                class="form-control"
+                value="{{ mom_data.date }}"
+                placeholder="2026-02-16"
+                required
+            >
+        </div>
+
+        <div class="form-group">
             <label for="objective">Meeting Objective *</label>
             <input 
                 type="text" 
@@ -29,15 +54,14 @@
         </div>
         
         <div class="form-group">
-            <label for="attendees">Attendees (comma-separated) *</label>
+            <label for="attendees">Attendees (comma-separated)</label>
             <input 
                 type="text" 
                 name="attendees" 
                 id="attendees" 
                 class="form-control"
-                value="{{ mom_data.attendees|join(', ') }}"
+                value="{{ mom_data.attendees|join(', ') if mom_data.attendees else '' }}"
                 placeholder="Alice Johnson, Bob Smith, Carol Davis"
-                required
             >
         </div>
         
@@ -50,7 +74,7 @@
                         type="text" 
                         name="decision_{{ loop.index0 }}" 
                         class="form-control"
-                        value="{{ decision }}"
+                        value="{{ decision.text }}"
                     >
                     <button type="button" class="btn-remove" onclick="removeItem(this)">Remove</button>
                 </div>
@@ -66,10 +90,10 @@
                 <div class="action-item">
                     <input 
                         type="text" 
-                        name="action_task_{{ loop.index0 }}" 
+                        name="action_action_{{ loop.index0 }}" 
                         class="form-control"
-                        placeholder="Task description"
-                        value="{{ item.task }}"
+                        placeholder="Action description"
+                        value="{{ item.action }}"
                     >
                     <input 
                         type="text" 
@@ -85,6 +109,13 @@
                         placeholder="Deadline (optional)"
                         value="{{ item.deadline or '' }}"
                     >
+                    <input 
+                        type="text" 
+                        name="action_status_{{ loop.index0 }}" 
+                        class="form-control"
+                        placeholder="Status (Open, In Progress, Completed)"
+                        value="{{ item.status or 'Open' }}"
+                    >
                     <button type="button" class="btn-remove" onclick="removeItem(this)">Remove</button>
                 </div>
                 {% endfor %}
@@ -92,16 +123,39 @@
             <input type="hidden" name="action_count" id="action_count" value="{{ mom_data.action_items|length }}">
             <button type="button" class="btn btn-secondary" onclick="addActionItem()">+ Add Action Item</button>
         </div>
-        
+
         <div class="form-group">
-            <label for="summary">Summary *</label>
+            <label for="parking_lot">Parking Lot (comma-separated)</label>
+            <input 
+                type="text" 
+                name="parking_lot" 
+                id="parking_lot" 
+                class="form-control"
+                value="{{ mom_data.parking_lot|join(', ') if mom_data.parking_lot else '' }}"
+                placeholder="Deferred items, follow-ups"
+            >
+        </div>
+
+        <div class="form-group">
+            <label for="notes">Notes</label>
             <textarea 
-                name="summary" 
-                id="summary" 
+                name="notes" 
+                id="notes" 
                 rows="4" 
                 class="form-control"
-                required
-            >{{ mom_data.summary }}</textarea>
+            >{{ mom_data.notes or '' }}</textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="confidentiality_flags">Confidentiality Flags (comma-separated)</label>
+            <input 
+                type="text" 
+                name="confidentiality_flags" 
+                id="confidentiality_flags" 
+                class="form-control"
+                value="{{ mom_data.confidentiality_flags|join(', ') if mom_data.confidentiality_flags else '' }}"
+                placeholder="Internal, Financial, Legal"
+            >
         </div>
     </div>
     
@@ -158,9 +212,10 @@ function addActionItem() {
     const div = document.createElement('div');
     div.className = 'action-item';
     div.innerHTML = `
-        <input type="text" name="action_task_${actionCount}" class="form-control" placeholder="Task description">
+        <input type="text" name="action_action_${actionCount}" class="form-control" placeholder="Action description">
         <input type="text" name="action_owner_${actionCount}" class="form-control" placeholder="Owner">
         <input type="text" name="action_deadline_${actionCount}" class="form-control" placeholder="Deadline (optional)">
+        <input type="text" name="action_status_${actionCount}" class="form-control" placeholder="Status (Open, In Progress, Completed)">
         <button type="button" class="btn-remove" onclick="removeItem(this)">Remove</button>
     `;
     container.appendChild(div);

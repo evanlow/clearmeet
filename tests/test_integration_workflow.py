@@ -77,25 +77,26 @@ def sample_transcript():
 def mock_openai_generate():
     """Mock OpenAI generate_mom response."""
     return {
+        'title': 'Weekly Team Sync',
+        'date': '2026-02-16',
         'objective': 'Weekly team sync to review Sprint 23 progress and plan Sprint 24',
         'attendees': ['Sarah Lee', 'John Tan', 'Priya Kumar'],
         'decisions': [
-            'Sprint 24 will focus on dashboard redesign',
-            'Target completion date set for March 15th'
+            {'text': 'Sprint 24 will focus on dashboard redesign'},
+            {'text': 'Target completion date set for March 15th'}
         ],
         'action_items': [
             {
-                'task': 'Start frontend components for dashboard redesign',
+                'action': 'Start frontend components for dashboard redesign',
                 'owner': 'John Tan',
                 'deadline': '2026-02-17'
             },
             {
-                'task': 'Begin API endpoint development for dashboard',
+                'action': 'Begin API endpoint development for dashboard',
                 'owner': 'Priya Kumar',
                 'deadline': '2026-02-17'
             }
-        ],
-        'summary': 'Team completed Sprint 23 authentication module. Planned Sprint 24 dashboard redesign with 3-day estimates for frontend and backend work.'
+        ]
     }
 
 
@@ -137,18 +138,19 @@ class TestCompleteTextWorkflow:
         
         # Step 4: Update MOM (user makes edits)
         response = client.post('/update', data={
+            'title': mock_openai_generate['title'],
+            'date': mock_openai_generate['date'],
             'objective': mock_openai_generate['objective'],
             'attendees': ', '.join(mock_openai_generate['attendees']),
-            'decision_0': mock_openai_generate['decisions'][0],
-            'decision_1': mock_openai_generate['decisions'][1],
+            'decision_0': mock_openai_generate['decisions'][0]['text'],
+            'decision_1': mock_openai_generate['decisions'][1]['text'],
             'action_count': '2',
-            'action_task_0': mock_openai_generate['action_items'][0]['task'],
+            'action_action_0': mock_openai_generate['action_items'][0]['action'],
             'action_owner_0': mock_openai_generate['action_items'][0]['owner'],
             'action_deadline_0': mock_openai_generate['action_items'][0]['deadline'],
-            'action_task_1': mock_openai_generate['action_items'][1]['task'],
+            'action_action_1': mock_openai_generate['action_items'][1]['action'],
             'action_owner_1': mock_openai_generate['action_items'][1]['owner'],
-            'action_deadline_1': mock_openai_generate['action_items'][1]['deadline'],
-            'summary': mock_openai_generate['summary']
+            'action_deadline_1': mock_openai_generate['action_items'][1]['deadline']
         }, follow_redirects=False)
         
         # Should redirect to validate
@@ -207,15 +209,17 @@ class TestCompleteTextWorkflow:
         # User makes modifications (using format expected by /update route)
         modified_objective = "MODIFIED: Weekly team standup"
         response = client.post('/update', data={
+            'title': 'Modified Weekly Sync',
+            'date': '2026-02-16',
             'objective': modified_objective,
             'attendees': 'Alice, Bob, Charlie',  # Modified
             'decision_0': 'New decision 1',  # Modified
             'decision_1': 'New decision 2',  # Modified
             'action_count': '1',
-            'action_task_0': 'Modified task',
+            'action_action_0': 'Modified action',
             'action_owner_0': 'Alice',
             'action_deadline_0': '2026-03-01',
-            'summary': 'Modified summary'
+            'action_status_0': 'Open'
         }, follow_redirects=False)
         
         assert response.status_code == 302
@@ -227,7 +231,7 @@ class TestCompleteTextWorkflow:
             assert session['mom_data']['objective'] == modified_objective
             assert 'Alice' in session['mom_data']['attendees']
             assert 'Bob' in session['mom_data']['attendees']
-            assert 'Modified task' in json.dumps(session['mom_data']['action_items'])
+            assert 'Modified action' in json.dumps(session['mom_data']['action_items'])
 
 
 class TestCompleteAudioWorkflow:
@@ -272,18 +276,19 @@ class TestCompleteAudioWorkflow:
         
         # Step 3: Update and validate
         response = client.post('/update', data={
+            'title': mock_openai_generate['title'],
+            'date': mock_openai_generate['date'],
             'objective': mock_openai_generate['objective'],
             'attendees': ', '.join(mock_openai_generate['attendees']),
-            'decision_0': mock_openai_generate['decisions'][0],
-            'decision_1': mock_openai_generate['decisions'][1],
+            'decision_0': mock_openai_generate['decisions'][0]['text'],
+            'decision_1': mock_openai_generate['decisions'][1]['text'],
             'action_count': '2',
-            'action_task_0': mock_openai_generate['action_items'][0]['task'],
+            'action_action_0': mock_openai_generate['action_items'][0]['action'],
             'action_owner_0': mock_openai_generate['action_items'][0]['owner'],
             'action_deadline_0': mock_openai_generate['action_items'][0]['deadline'],
-            'action_task_1': mock_openai_generate['action_items'][1]['task'],
+            'action_action_1': mock_openai_generate['action_items'][1]['action'],
             'action_owner_1': mock_openai_generate['action_items'][1]['owner'],
-            'action_deadline_1': mock_openai_generate['action_items'][1]['deadline'],
-            'summary': mock_openai_generate['summary']
+            'action_deadline_1': mock_openai_generate['action_items'][1]['deadline']
         }, follow_redirects=False)
         
         assert response.status_code == 302
@@ -482,11 +487,12 @@ class TestWorkflowPerformance:
         many_attendees = [f'Person{i}' for i in range(50)]  # 50 attendees
         
         mock_generate.return_value = {
+            'title': 'Large Meeting',
+            'date': '2026-02-16',
             'objective': 'Large meeting',
             'attendees': many_attendees,
-            'decisions': ['Decision 1'],
-            'action_items': [],
-            'summary': 'Summary'
+            'decisions': [{'text': 'Decision 1'}],
+            'action_items': []
         }
         
         response = client.post('/process', data={
@@ -504,16 +510,17 @@ class TestWorkflowPerformance:
                                                   client, sample_transcript):
         """Test workflow with many action items."""
         many_actions = [
-            {'task': f'Task {i}', 'owner': 'Owner', 'deadline': '2026-03-01'}
+            {'action': f'Task {i}', 'owner': 'Owner', 'deadline': '2026-03-01'}
             for i in range(30)  # 30 action items
         ]
         
         mock_generate.return_value = {
+            'title': 'Complex Meeting',
+            'date': '2026-02-16',
             'objective': 'Complex meeting',
             'attendees': ['Alice'],
-            'decisions': ['Decision'],
-            'action_items': many_actions,
-            'summary': 'Summary'
+            'decisions': [{'text': 'Decision'}],
+            'action_items': many_actions
         }
         
         response = client.post('/process', data={
