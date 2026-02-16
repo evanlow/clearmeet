@@ -9,6 +9,7 @@ import os
 import json
 from datetime import datetime
 from typing import Optional
+import threading
 
 from config import get_config, Config
 from core.parser import TranscriptParser
@@ -16,6 +17,11 @@ from core.llm import extract_mom_from_transcript, render_mom_text, transcribe_au
 from core.audio import AudioTranscriber
 from core.validation import MOMValidator, ValidationItem
 from core.export import PDFExporter
+
+# Module-level progress tracking (shared across requests)
+# Use a lock for thread-safe updates
+_progress_lock = threading.Lock()
+_progress_state = {}
 
 
 def create_app(config_name: Optional[str] = None) -> Flask:
@@ -79,6 +85,11 @@ def create_app(config_name: Optional[str] = None) -> Flask:
                 print(f"[DEBUG] transcript_text value (first 200 chars): '{transcript_preview}'")
                 print(f"[DEBUG] transcript_text length: {len(request.form['transcript_text'])}")
             print("="*80 + "\n")
+            
+            # Clear any previous progress state
+            global _progress_state
+            _progress_state.clear()
+            
             transcript = None
             
             # Check if audio file uploaded
@@ -108,13 +119,19 @@ def create_app(config_name: Optional[str] = None) -> Flask:
                         # Create progress callback for SSE updates
                         def progress_callback(progress_data):
                             """Update progress tracking for SSE stream."""
-                            # Store progress in Flask's g object (thread-local)
-                            if not hasattr(g, 'progress_chunks'):
-                                g.progress_chunks = []
-                            g.progress_chunks.append(progress_data.get('duration_sec', 0))
+                            global _progress_state, _progress_lock
                             
-                            progress_data['avg_time_per_chunk'] = sum(g.progress_chunks) / len(g.progress_chunks)
-                            setattr(g, 'current_progress', progress_data)
+                            with _progress_lock:
+                                # Track chunk durations for average calculation
+                                if 'progress_chunks' not in _progress_state:
+                                    _progress_state['progress_chunks'] = []
+                                
+                                _progress_state['progress_chunks'].append(progress_data.get('duration_sec', 0))
+                                
+                                # Calculate average time per chunk
+                                progress_data['avg_time_per_chunk'] = sum(_progress_state['progress_chunks']) / len(_progress_state['progress_chunks'])
+                                _progress_state['current_progress'] = progress_data
+                                
                             print(f"[PROGRESS] Chunk {progress_data.get('chunk')}/{progress_data.get('total_chunks')} - {progress_data.get('avg_time_per_chunk', 0):.1f}s avg")
                         
                         # Transcribe audio (with automatic chunking for large files)
@@ -212,12 +229,16 @@ def create_app(config_name: Optional[str] = None) -> Flask:
         Yields progress events with format: data: {"chunk": #, "total_chunks": #, "percent": #, ...}
         """
         def generate():
+            global _progress_state, _progress_lock
             last_chunk = 0
+            consecutive_empty = 0
+            
             while True:
-                # Get current progress from g object
-                progress_data = getattr(g, 'current_progress', {})
+                with _progress_lock:
+                    progress_data = _progress_state.get('current_progress', {})
                 
                 if progress_data and progress_data.get('chunk', 0) > last_chunk:
+                    consecutive_empty = 0
                     chunk = progress_data.get('chunk', 0)
                     total = progress_data.get('total_chunks', 1)
                     percent = int((chunk / total) * 100) if total > 0 else 0
@@ -226,10 +247,18 @@ def create_app(config_name: Optional[str] = None) -> Flask:
                     
                     yield f'data: {json.dumps({"chunk": chunk, "total_chunks": total, "percent": percent, "estimated_seconds": int(estimated_remaining)})}\n\n'
                     last_chunk = chunk
+                    print(f"[SSE] Sent progress: Chunk {chunk}/{total} ({percent}%)")
                     
                     # If completed, signal end
                     if chunk >= total:
-                        yield f'data: {json.dumps({"completed": true})}\n\n'
+                        yield f'data: {json.dumps({"completed": True})}\n\n'
+                        break
+                else:
+                    # Count consecutive empty reads
+                    consecutive_empty += 1
+                    # Timeout after 5 minutes of no updates
+                    if consecutive_empty > 6000:  # 6000 * 0.05s = 300s = 5 min
+                        print("[SSE] Timeout: No progress updates for 5 minutes")
                         break
                 
                 # Small sleep to prevent busy-waiting

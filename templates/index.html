@@ -194,12 +194,18 @@ if (inputForm) {
         loadingDetail.innerHTML = '<div id="progressInfo">Starting...</div>';
         
         // Start SSE progress tracking
+        console.log('[ClearMeet] 🔄 Opening SSE connection to /progress');
         const progressStream = new EventSource('/progress');
         let progressStarted = false;
+        
+        progressStream.onopen = function() {
+            console.log('[ClearMeet] ✓ SSE connection opened');
+        };
         
         progressStream.onmessage = function(event) {
             try {
                 const data = JSON.parse(event.data);
+                console.log('[ClearMeet] 📨 SSE message received:', data);
                 
                 if (data.completed) {
                     console.log('[ClearMeet] ✓ Audio processing complete');
@@ -221,14 +227,14 @@ if (inputForm) {
                     progressInfo.innerHTML = progressText;
                 }
                 
-                console.log(`[ClearMeet] Progress: ${progressText}`);
+                console.log(`[ClearMeet] Updated progress: ${progressText}`);
             } catch (err) {
-                console.error('[ClearMeet] Error parsing progress:', err);
+                console.error('[ClearMeet] Error parsing progress message:', err, event.data);
             }
         };
         
         progressStream.onerror = function() {
-            console.log('[ClearMeet] SSE connection closed');
+            console.error('[ClearMeet] ❌ SSE connection error');
             progressStream.close();
         };
     } else {
