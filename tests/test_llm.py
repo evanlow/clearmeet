@@ -11,7 +11,9 @@ Tests cover:
 import pytest
 import json
 from unittest.mock import Mock, patch, MagicMock
+from pydantic import ValidationError
 from core.llm import MOMGenerator
+from core.schema import validate_mom_dict
 
 
 class TestMOMGenerator:
@@ -168,8 +170,10 @@ class TestMOMGenerator:
     
     def test_validate_mom_structure_with_valid_data(self, sample_mom_data):
         """Test validation accepts valid MOM structure."""
-        is_valid = MOMGenerator._validate_mom_structure(sample_mom_data)
-        assert is_valid is True
+        # Should not raise ValidationError
+        validated = validate_mom_dict(sample_mom_data)
+        assert validated is not None
+        assert validated.objective == sample_mom_data['objective']
     
     def test_validate_mom_structure_rejects_missing_keys(self):
         """Test validation rejects data with missing keys."""
@@ -178,8 +182,8 @@ class TestMOMGenerator:
             "decisions": []
             # Missing action_items, attendees, summary
         }
-        is_valid = MOMGenerator._validate_mom_structure(incomplete_data)
-        assert is_valid is False
+        with pytest.raises(ValidationError):
+            validate_mom_dict(incomplete_data)
     
     def test_validate_mom_structure_rejects_wrong_types(self):
         """Test validation rejects data with wrong types."""
@@ -190,8 +194,8 @@ class TestMOMGenerator:
             "attendees": [],
             "summary": "Test"
         }
-        is_valid = MOMGenerator._validate_mom_structure(wrong_types)
-        assert is_valid is False
+        with pytest.raises(ValidationError):
+            validate_mom_dict(wrong_types)
     
     def test_validate_mom_structure_validates_action_items(self):
         """Test validation checks action item structure."""
@@ -204,8 +208,8 @@ class TestMOMGenerator:
             "attendees": [],
             "summary": "Test"
         }
-        is_valid = MOMGenerator._validate_mom_structure(invalid_action_items)
-        assert is_valid is False
+        with pytest.raises(ValidationError):
+            validate_mom_dict(invalid_action_items)
     
     def test_render_mom_text_with_complete_data(self, sample_mom_data):
         """Test rendering complete MOM data to text."""

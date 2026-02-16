@@ -5,6 +5,9 @@ Werkzeug==3.0.1
 # OpenAI API
 openai>=1.54.0
 
+# Data Validation
+pydantic>=2.0.0
+
 # PDF Generation
 reportlab==4.0.9
 PyPDF2==3.0.1

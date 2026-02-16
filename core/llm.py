@@ -1,12 +1,15 @@
 """
 OpenAI LLM integration for MOM generation.
 
-Uses structured output (JSON) to generate meeting minutes.
+Uses structured output (JSON) to generate meeting minutes with Pydantic validation.
 """
 from typing import Optional, Any
 import json
 from openai import OpenAI
 from openai import OpenAIError
+from pydantic import ValidationError
+
+from core.schema import MeetingMOM, validate_mom_dict
 
 
 class MOMGenerator:
@@ -51,8 +54,9 @@ class MOMGenerator:
         if not transcript or not transcript.strip():
             raise ValueError("Transcript cannot be empty")
         
-        # Build system prompt
-        system_prompt = """You are an expert at creating clear, concise Minutes of Meeting (MOM).
+        # Build system prompt with Pydantic schema
+        json_schema = MeetingMOM.get_json_schema_for_llm()
+        system_prompt = f"""You are an expert at creating clear, concise Minutes of Meeting (MOM).
         
 Your task is to analyze meeting transcripts and extract:
 1. Meeting objective/purpose
@@ -62,18 +66,10 @@ Your task is to analyze meeting transcripts and extract:
 5. Brief summary of discussion
 
 Return your response as valid JSON with this exact structure:
-{
-  "objective": "string",
-  "decisions": ["decision1", "decision2", ...],
-  "action_items": [
-    {"task": "string", "owner": "string", "deadline": "string or null"},
-    ...
-  ],
-  "attendees": ["name1", "name2", ...],
-  "summary": "string"
-}
+{json_schema}
 
-Be specific and actionable. Use professional business language."""
+Be specific and actionable. Use professional business language.
+CRITICAL: Ensure 'owner' fields are actual names, not placeholders like 'TBD' or 'To be assigned'."""
         
         # Build user prompt
         user_prompt = f"Meeting Transcript:\n\n{transcript}"
@@ -98,53 +94,18 @@ Be specific and actionable. Use professional business language."""
             
             mom_data = json.loads(content)
             
-            # Validate structure
-            if not self._validate_mom_structure(mom_data):
-                raise ValueError("Invalid MOM structure returned from API")
-            
-            return mom_data
+            # Validate structure using Pydantic
+            try:
+                validated_mom = validate_mom_dict(mom_data)
+                # Return dict for backward compatibility
+                return validated_mom.model_dump(exclude_none=True)
+            except ValidationError as e:
+                raise ValueError(f"Invalid MOM structure returned from API: {e}")
             
         except json.JSONDecodeError as e:
             raise ValueError(f"Failed to parse JSON response: {e}")
         except OpenAIError as e:
             raise OpenAIError(f"OpenAI API error: {e}")
-    
-    @staticmethod
-    def _validate_mom_structure(data: dict) -> bool:
-        """
-        Validate that MOM data has required structure.
-        
-        Args:
-            data: MOM data dictionary
-            
-        Returns:
-            True if valid structure
-        """
-        required_keys = {'objective', 'decisions', 'action_items', 'attendees', 'summary'}
-        
-        if not all(key in data for key in required_keys):
-            return False
-        
-        # Validate types
-        if not isinstance(data['objective'], str):
-            return False
-        if not isinstance(data['decisions'], list):
-            return False
-        if not isinstance(data['action_items'], list):
-            return False
-        if not isinstance(data['attendees'], list):
-            return False
-        if not isinstance(data['summary'], str):
-            return False
-        
-        # Validate action items structure
-        for item in data['action_items']:
-            if not isinstance(item, dict):
-                return False
-            if not all(key in item for key in ['task', 'owner', 'deadline']):
-                return False
-        
-        return True
     
     def render_mom_text(self, mom_data: dict) -> str:
         """
