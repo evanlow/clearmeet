@@ -121,6 +121,8 @@ def create_app(config_name: Optional[str] = None) -> Flask:
                             """Update progress tracking for SSE stream."""
                             global _progress_state, _progress_lock
                             
+                            print(f"[CALLBACK] Received progress update: {progress_data}")
+                            
                             with _progress_lock:
                                 # Track chunk durations for average calculation
                                 if 'progress_chunks' not in _progress_state:
@@ -132,11 +134,50 @@ def create_app(config_name: Optional[str] = None) -> Flask:
                                 progress_data['avg_time_per_chunk'] = sum(_progress_state['progress_chunks']) / len(_progress_state['progress_chunks'])
                                 _progress_state['current_progress'] = progress_data
                                 
+                                print(f"[CALLBACK] Updated _progress_state: {_progress_state}")
+                                
                             print(f"[PROGRESS] Chunk {progress_data.get('chunk')}/{progress_data.get('total_chunks')} - {progress_data.get('avg_time_per_chunk', 0):.1f}s avg")
                         
-                        # Transcribe audio (with automatic chunking for large files)
-                        transcript = transcribe_audio(filepath, progress_callback=progress_callback)
+                        # Transcribe audio in a background thread to keep Flask responsive for SSE
+                        print(f"[DEBUG] Starting transcription in background thread")
                         
+                        # Store transcript in a container so it can be updated from the thread
+                        transcription_result = {'transcript': None}
+                        transcription_error = {'error': None}
+                        
+                        def transcribe_in_background():
+                            try:
+                                print(f"[DEBUG] Background thread: calling transcribe_audio with progress_callback")
+                                transcription_result['transcript'] = transcribe_audio(filepath, progress_callback=progress_callback)
+                                print(f"[DEBUG] Background thread: transcribe_audio completed")
+                                # Mark completion
+                                with _progress_lock:
+                                    if 'current_progress' in _progress_state:
+                                        _progress_state['current_progress']['completed'] = True
+                            except Exception as e:
+                                print(f"[ERROR] Background thread transcription error: {e}")
+                                transcription_error['error'] = str(e)
+                        
+                        transcribe_thread = threading.Thread(target=transcribe_in_background, daemon=False)
+                        transcribe_thread.start()
+                        
+                        # Wait for transcription to complete
+                        print(f"[DEBUG] Main thread: waiting for transcription")
+                        transcribe_thread.join(timeout=1800)  # 30 minute timeout
+                        
+                        if transcribe_thread.is_alive():
+                            print(f"[ERROR] Transcription thread timed out")
+                            flash("Audio transcription timed out after 30 minutes", 'error')
+                            return redirect(url_for('index'))
+                        
+                        # Check for errors during transcription
+                        if transcription_error['error']:
+                            flash(f"Transcription error: {transcription_error['error']}", 'error')
+                            return redirect(url_for('index'))
+                        
+                        transcript = transcription_result['transcript']
+                        
+
                     finally:
                         # Clean up uploaded file
                         if os.path.exists(filepath):
@@ -232,10 +273,16 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             global _progress_state, _progress_lock
             last_chunk = 0
             consecutive_empty = 0
+            iteration = 0
+            
+            print(f"[SSE] Generator started, initial _progress_state: {_progress_state}")
             
             while True:
+                iteration += 1
                 with _progress_lock:
                     progress_data = _progress_state.get('current_progress', {})
+                    if iteration <= 5 or iteration % 20 == 0:
+                        print(f"[SSE] Iteration {iteration}: progress_data = {progress_data}")
                 
                 if progress_data and progress_data.get('chunk', 0) > last_chunk:
                     consecutive_empty = 0
@@ -245,12 +292,13 @@ def create_app(config_name: Optional[str] = None) -> Flask:
                     avg_time = progress_data.get('avg_time_per_chunk', 0)
                     estimated_remaining = (total - chunk) * avg_time
                     
+                    print(f"[SSE] Sending update: chunk={chunk}/{total} ({percent}%)")
                     yield f'data: {json.dumps({"chunk": chunk, "total_chunks": total, "percent": percent, "estimated_seconds": int(estimated_remaining)})}\n\n'
                     last_chunk = chunk
-                    print(f"[SSE] Sent progress: Chunk {chunk}/{total} ({percent}%)")
                     
                     # If completed, signal end
                     if chunk >= total:
+                        print("[SSE] Progress complete, sending completion signal")
                         yield f'data: {json.dumps({"completed": True})}\n\n'
                         break
                 else:

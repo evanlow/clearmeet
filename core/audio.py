@@ -296,11 +296,14 @@ class AudioTranscriber:
                 
                 # Call progress callback
                 if progress_callback:
+                    print(f"[AUDIO] Calling progress_callback with chunk {i}/{len(chunk_files)}")
                     progress_callback({
                         'chunk': i,
                         'total_chunks': len(chunk_files),
                         'duration_sec': chunk_duration_sec
                     })
+                else:
+                    print(f"[AUDIO] No progress_callback provided")
 
             print(f"[AUDIO] Combining {len(transcripts)} transcripts...")
             combined_transcript = "\n\n[Continuing...]\n\n".join(transcripts)

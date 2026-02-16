@@ -99,8 +99,11 @@ def transcribe_audio(file_path: str, progress_callback: Optional[Callable[[dict]
     transcriber = AudioTranscriber(api_key=api_key, model=model)
     chunk_size_mb = int(os.getenv("CHUNK_SIZE_MB", "20"))
 
+    print(f"[LLM] transcribe_audio called with progress_callback={progress_callback}")
     try:
-        return transcriber.transcribe_audio(file_path, chunk_size_mb=chunk_size_mb, progress_callback=progress_callback)
+        result = transcriber.transcribe_audio(file_path, chunk_size_mb=chunk_size_mb, progress_callback=progress_callback)
+        print(f"[LLM] transcriber.transcribe_audio returned successfully")
+        return result
     except (FileNotFoundError, ValueError):
         raise
     except OpenAIError:
