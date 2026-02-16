@@ -258,18 +258,93 @@ result = engine.run()  # Now combine them
    - Event handlers not firing
    - Tab switching breaking functionality
    - Client-side validation issues
+   - **CRITICAL: Syntax errors that break ALL JavaScript** (missing braces, semicolons)
 
-2. **Browser-Specific Issues**
+2. **HTML Form Behavior**
+   - Disabled fields don't submit their values (HTML spec behavior)
+   - Form validation preventing submission
+   - Field names not matching server expectations
+   - Empty file inputs always present in request.files
+
+3. **Browser-Specific Issues**
    - CSS breaking layout
    - Forms not submitting
-   - Disabled fields preventing submission
    - AJAX requests failing
+   - Event listeners not attaching
 
-3. **User Flow  Problems**
+4. **User Flow Problems**
    - Confusing UX (buttons that don't work as expected)
    - Missing feedback (no loading indicators)
    - Error messages not displayed
    - Navigation breaks
+
+**⚠️ SPECIAL DANGER: JavaScript Syntax Errors**
+JavaScript syntax errors are **silent killers** that make debugging extremely difficult:
+
+```javascript
+// Bug example: Missing closing brace
+if (inputForm) {
+    inputForm.addEventListener('submit', function(e) {
+        // ... lots of code ...
+        return true;
+    });
+// ❌ MISSING } for if statement!
+</script>
+
+// Result:
+// - Browser shows: "Uncaught SyntaxError: Unexpected end of input"
+// - ALL JavaScript after the error: DOESN'T RUN
+// - Event handlers: NEVER REGISTERED
+// - Console logs: NEVER APPEAR
+// - Form: Falls back to plain HTML submission (no validation, no logging)
+// - From user perspective: Form "doesn't work" with no clear error
+```
+
+**Why Syntax Errors Are Devastating:**
+1. **Silent failure** - JavaScript stops executing, no obvious error to user
+2. **All subsequent code disabled** - entire script block becomes useless
+3. **Event handlers don't register** - buttons appear functional but don't work
+4. **No logging output** - can't debug with console.log if code never runs
+5. **Backend tests still pass** - they don't load JavaScript at all
+
+**How to Catch JavaScript Syntax Errors:**
+1. **Open browser console (F12)** before any manual test
+2. **Look for red error messages** - "SyntaxError" is your clue  
+3. **Check line numbers** - browser tells you exactly where the error is
+4. **Fix syntax, hard refresh** - Ctrl+Shift+R to clear cached JavaScript
+5. **Re-test** - verify error gone and functionality works
+
+**⚠️ SPECIAL DANGER: Compounding Bugs (Multiple Bugs Masking Each Other)**
+When multiple bugs exist simultaneously, they can hide each other:
+
+**Example Cascade:**
+```
+Bug #1: Disabled form fields (don't submit values)
+         ↓
+Prevents testing → Bug #2: JavaScript syntax error (code doesn't run)
+         ↓  
+Can't reach server → Bug #3: if/elif logic bug (wrong branch executes)
+         ↓
+Each bug hides the next → Appears as single issue to user
+```
+
+**Debugging Compounding Bugs - Systematic Approach:**
+1. **Start at the beginning** - browser loads page (console errors?)
+2. **Check each layer in order:**
+   - Browser console → any errors?
+   - JavaScript logs → are they appearing?
+   - Network tab → is request being sent?
+   - Server logs → is request received?
+   - Server processing → what's the data?
+3. **Fix ONE bug at a time**
+4. **Re-test after EACH fix** - don't assume you found "the" bug
+5. **Repeat until workflow succeeds end-to-end**
+
+**Cost of Compounding Bugs:**
+- Single bug alone: 5-10 min to find
+- Two bugs together: 15-30 min (each hides symptoms of the other)
+- Three bugs together: 45+ min (exponential debugging difficulty)
+- **Prevention: Manual testing catches ALL of them in 2 minutes**
 
 **The Protocol - Web Applications:**
 
@@ -884,6 +959,212 @@ Manual Smoke Test (skipped):
 - For larger teams/complex UIs: Consider Selenium/Playwright E2E tests
 - For small projects/internal tools: Manual checklist + discipline is sufficient
 - Trade-off: E2E test maintenance time vs manual testing time (usually manual wins for small projects)
+
+---
+
+### ClearMeet Project: Premature Commit and Compounding Bugs (February 16, 2026)
+
+#### Lesson: "Fixed" Doesn't Mean Fixed - Three Bugs Masking Each Other
+**Context:** ClearMeet MOM generator - committed "fix" that didn't actually work, required extensive debugging to find THREE separate bugs
+
+**The Incident Timeline:**
+1. **First commit (0e64b72):** "Fix form submission bug" - claimed to remove field clearing
+2. **User test:** "Same problem persists" - form still not working
+3. **Debugging discovery:** THREE separate bugs were present:
+   - Bug #1: Disabled form fields (don't submit values)
+   - Bug #2: JavaScript syntax error (missing closing brace)
+   - Bug #3: if/elif logic bug in Python (audio field check always true)
+
+**The Premature Commit:**
+```bash
+# What I thought I fixed:
+- Removed transcriptField.value = '' and audioField.value = ''
+- Added extensive logging
+- Committed with confidence
+
+# What I actually missed:
+- Didn't test manually before committing
+- Assumed code changes were correct without verification
+- Trusted code review over actual execution
+```
+
+**The Three Compounding Bugs:**
+
+**Bug #1: Disabled Form Fields**
+```javascript
+// templates/index.html
+if (tabId === 'text-tab') {
+    transcriptField.disabled = false;
+    audioField.disabled = true;  // ❌ Disabled fields DON'T submit!
+}
+```
+**Issue:** HTML specification - disabled form fields are excluded from form submission
+**Hidden by:** Even if JavaScript worked, fields wouldn't submit
+**Fix:** Removed all disabled logic, let server decide which input to use
+
+**Bug #2: JavaScript Syntax Error**
+```javascript
+// templates/index.html - broken structure
+if (inputForm) {
+    inputForm.addEventListener('submit', function(e) {
+        // ... submission handler code ...
+        return true;
+    });
+// ❌ MISSING CLOSING BRACE for if (inputForm) block!
+</script>
+```
+**Error:** `Uncaught SyntaxError: Unexpected end of input (at (index):222)`
+**Impact:** 
+- Event handler never registered
+- JavaScript failed silently
+- Form did plain HTML submission (no validation, no logging)
+- All console.log statements never executed
+**Hidden by:** Bug #1 meant even if JS worked, form wouldn't submit values
+**Fix:** Added missing `}` closing brace
+
+**Bug #3: if/elif Logic Bug**
+```python
+# app.py - broken logic
+if 'audio_file' in request.files:  # ❌ ALWAYS TRUE (field exists even when empty)
+    audio_file = request.files['audio_file']
+    if audio_file and audio_file.filename:  # Only processes if file uploaded
+        transcript = transcribe_audio(...)
+# elif never runs because outer if is always true!
+elif 'transcript_text' in request.form:  # ❌ NEVER EXECUTES
+    transcript = request.form['transcript_text']
+```
+**Issue:** Form fields always exist in request, even when empty
+**Impact:**
+- Transcript branch never executed
+- `transcript` variable stayed `None`
+- Cleaned to empty string
+- Validation failed: "Transcript is empty"
+**Hidden by:** Bugs #1 and #2 prevented form from submitting properly to even see this
+**Fix:** Changed to check for actual file content: `if audio_file and audio_file.filename:`
+
+**Why All Three Bugs Were Present:**
+1. **First bug** (disabled fields) introduced when trying to "fix" clearing issue
+2. **Second bug** (syntax error) introduced while adding extensive logging
+3. **Third bug** (if/elif logic) was pre-existing but hidden by first two bugs
+4. **Each bug masked the others** - fixing one revealed the next
+
+**The Systematic Debugging Process That Found Them:**
+```markdown
+Step 1: Check browser console → Found syntax error (Bug #2)
+Step 2: Fix syntax error, test → Still doesn't work, no logs appearing
+Step 3: Check form submission → Fields have values, but not submitting  
+Step 4: Research disabled fields → Discovered they don't submit (Bug #1)
+Step 5: Remove disabled logic, test → Form submits but server gets empty transcript
+Step 6: Check server logs → Transcript arrives (230 chars) but becomes empty after cleaning
+Step 7: Trace Python logic → Found if/elif never reaching transcript branch (Bug #3)
+Step 8: Fix if/elif logic → SUCCESS!
+```
+
+**What Should Have Been Done (First Time):**
+```markdown
+Pre-Commit Checklist (FAILED):
+□ Backend tests passing (138/138) ✓ - Not sufficient!
+□ Manual smoke test - ❌ SKIPPED (would have caught all bugs)
+□ Browser console check - ❌ SKIPPED (would have found syntax error)
+□ Server logs during manual test - ❌ SKIPPED (would have found if/elif bug)
+□ Verified form submission end-to-end - ❌ SKIPPED
+```
+
+**Cost Analysis:**
+- Time to manual test before first commit: **2 minutes**
+- Time spent debugging after premature commit: **45+ minutes**
+- Additional commits needed: **2 (first one was wrong)**
+- Users affected: **1 (found issues immediately)**
+- **ROI of 2-minute manual test: 22.5x time savings**
+
+**Critical Insights:**
+
+1. **"Backend tests pass" ≠ "Code works"**
+   - 138/138 tests passed for ALL THREE buggy commits
+   - Tests validated logic, not execution
+   - No amount of unit tests catches these build-time issues
+
+2. **Multiple bugs compound exponentially**
+   - Bug #1 alone: 5 min to find
+   - Bug #2 alone: 2 min to find  
+   - Bug #3 alone: 10 min to find
+   - All three together: 45+ min (each hides the others)
+
+3. **Systematic debugging is essential when multiple bugs present**
+   - Start at the beginning (browser loads)
+   - Check each layer (JavaScript → HTML → Server → Logic)
+   - Fix one bug, re-test immediately
+   - Don't assume you found "the" bug (there might be more)
+
+4. **Never commit "fixes" without verification**
+   - Code that "should work" often doesn't
+   - Reading code ≠ executing code
+   - 2 minutes of testing > 45 minutes of debugging later
+
+5. **Syntax errors are silent killers**
+   - JavaScript syntax errors prevent ALL subsequent code from running
+   - Event handlers never register
+   - No error shown to user (just fails silently)
+   - Browser console is MANDATORY for any JS changes
+
+**Updated Pre-Commit Protocol (Post-Incident):**
+```markdown
+For ANY code change that affects user-facing features:
+
+1. Backend tests passing ✓
+2. **MANDATORY Manual Test:**
+   - Start application
+   - Exercise the changed feature end-to-end
+   - Check browser console (F12) for errors
+   - Check server logs for expected behavior
+   - Verify success/failure cases
+3. **Document manual testing in commit message:**
+   ```
+   Manual Testing: ✓
+     - Pasted transcript in form (228 chars)
+     - Clicked Generate MOM
+     - Form submitted successfully
+     - Server received transcript
+     - MOM generated and displayed
+     - Browser console: 0 errors
+   ```
+4. Only then commit and push
+
+Time investment: 2-5 minutes
+Time savings: 15-60+ minutes (per avoided bug)
+Confidence level: Actually fixed (not "should be fixed")
+```
+
+**The Hard Truth:**
+```
+Commit 0e64b72: "Fix form submission bug" 
+Actual status: Claimed fix, didn't test, pushed broken code
+User feedback: "Same problem persists"
+Reality: THREE bugs still present
+
+Commit ca0e67d: "Fix form submission bugs (ACTUAL fix)" 
+Actual status: Tested manually, verified working
+User feedback: "the previous errors were resolved"
+Reality: Actually fixed, user confirmed
+```
+
+**Key Quote:**
+> "appreciate the hard work. Can you please push to git?"  
+> — User request showing assumption that code was ready (but it wasn't until manual testing forced proper debugging)
+
+**Permanent Rule Additions:**
+1. **Never commit without manual verification of changed functionality**
+2. **"Should work" ≠ "Does work" - only execution proves correctness**
+3. **Browser console must be checked for ALL JavaScript changes**
+4. **Systematic debugging checklist for compounding bugs**
+5. **Document what you tested, not just what you changed**
+
+**Prevention Strategy:**
+- Make manual testing feel as important as backend tests (because it is)
+- Budget 2-5 minutes for manual verification into every code change
+- Use browser DevTools as religiously as pytest
+- Treat premature commits as failures requiring incident reports
+- Accept that some verification requires actual execution, not code review
 
 ---
 
