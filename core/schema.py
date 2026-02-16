@@ -30,7 +30,7 @@ class Decision(BaseModel):
 
 class ActionItem(BaseModel):
     """An action item from the meeting."""
-    owner: str = Field(..., min_length=1, description="Who is responsible")
+    owner: str = Field(..., min_length=0, description="Who is responsible (empty if unknown)")
     action: str = Field(..., min_length=3, description="What needs to be done")
     deadline: Optional[str] = Field(None, description="Deadline (date string or 'ASAP')")
     status: str = Field(default="Open", description="Status: Open, In Progress, Completed")
@@ -39,8 +39,10 @@ class ActionItem(BaseModel):
     @classmethod
     def owner_not_placeholder(cls, v: str) -> str:
         """Ensure owner is not a placeholder value."""
-        if v.strip().lower() in ['n/a', 'none', 'unassigned', '', 'tbd', 'to be determined']:
-            raise ValueError("Action item must have a real owner assigned (not 'N/A', 'None', or 'Unassigned')")
+        if not v or not v.strip():
+            return ""
+        if v.strip().lower() in ['n/a', 'none', 'unassigned', 'tbd', 'to be determined']:
+            raise ValueError("Action item owner must be a real name or empty when unknown")
         return v.strip()
 
     @field_validator('action')
@@ -158,9 +160,9 @@ class MeetingMOM(BaseModel):
                     "items": {
                         "type": "object",
                         "properties": {
-                            "owner": {"type": "string", "description": "Who is responsible (must be a real name, not 'TBD')"},
+                            "owner": {"type": "string", "description": "Who is responsible (empty string if unknown; never use placeholders)"},
                             "action": {"type": "string", "description": "What needs to be done"},
-                            "deadline": {"type": "string", "description": "When it's due (date or 'ASAP' or null)"},
+                            "deadline": {"type": "string", "description": "When it's due (date or '' if unknown)"},
                             "status": {"type": "string", "description": "Status (default: 'Open')"}
                         },
                         "required": ["owner", "action"]

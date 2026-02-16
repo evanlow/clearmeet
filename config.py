@@ -41,7 +41,11 @@ class Config:
     OPENAI_API_KEY: Optional[str] = os.getenv('OPENAI_API_KEY')
     OPENAI_MODEL: str = os.getenv('OPENAI_MODEL', 'gpt-4o-mini')
     OPENAI_TEMPERATURE: float = float(os.getenv('OPENAI_TEMPERATURE', '0.3'))
-    WHISPER_MODEL: str = os.getenv('WHISPER_MODEL', 'whisper-1')
+    OPENAI_TRANSCRIBE_MODEL: str = os.getenv(
+        'OPENAI_TRANSCRIBE_MODEL',
+        os.getenv('WHISPER_MODEL', 'whisper-1')
+    )
+    WHISPER_MODEL: str = OPENAI_TRANSCRIBE_MODEL
     
     @staticmethod
     def validate_config() -> tuple[bool, str]:

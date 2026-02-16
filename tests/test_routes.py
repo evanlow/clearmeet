@@ -46,7 +46,7 @@ class TestIndexRoute:
 class TestProcessRoute:
     """Tests for process route."""
     
-    @patch('app.MOMGenerator.generate_mom')
+    @patch('app.extract_mom_from_transcript')
     def test_process_with_valid_transcript(self, mock_generate, client):
         """Test processing a valid transcript."""
         # Setup mock
@@ -98,7 +98,7 @@ class TestProcessRoute:
         assert response.status_code == 302
         assert '/' in response.location
     
-    @patch('app.MOMGenerator.generate_mom')
+    @patch('app.extract_mom_from_transcript')
     def test_process_stores_data_in_session(self, mock_generate, client):
         """Test that processed data is stored in session."""
         mock_mom_data = {
@@ -156,7 +156,7 @@ class TestEditRoute:
 class TestUpdateRoute:
     """Tests for update route."""
     
-    @patch('app.MOMGenerator.render_mom_text')
+    @patch('app.render_mom_text')
     def test_update_with_structured_data(self, mock_render, client):
         """Test updating MOM with structured data."""
         mock_render.return_value = "Rendered MOM text"

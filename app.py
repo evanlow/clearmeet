@@ -12,7 +12,7 @@ from typing import Optional
 
 from config import get_config, Config
 from core.parser import TranscriptParser
-from core.llm import MOMGenerator
+from core.llm import extract_mom_from_transcript, render_mom_text, transcribe_audio
 from core.audio import AudioTranscriber
 from core.validation import MOMValidator, ValidationItem
 from core.export import PDFExporter
@@ -43,17 +43,6 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     
     # Initialize components
-    llm_generator = MOMGenerator(
-        api_key=app.config['OPENAI_API_KEY'],
-        model=app.config['OPENAI_MODEL'],
-        temperature=app.config['OPENAI_TEMPERATURE']
-    )
-    
-    audio_transcriber = AudioTranscriber(
-        api_key=app.config['OPENAI_API_KEY'],
-        model=app.config['WHISPER_MODEL']
-    )
-    
     pdf_exporter = PDFExporter()
     
     # Routes
@@ -117,10 +106,7 @@ def create_app(config_name: Optional[str] = None) -> Flask:
                             return redirect(url_for('index'))
                         
                         # Transcribe audio (with automatic chunking for large files)
-                        transcript = audio_transcriber.transcribe_audio(
-                            filepath,
-                            chunk_size_mb=app.config.get('CHUNK_SIZE_MB', 20)
-                        )
+                        transcript = transcribe_audio(filepath)
                         
                     finally:
                         # Clean up uploaded file
@@ -164,7 +150,11 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             additional_context = request.form.get('additional_context', '')
             print(f"[DEBUG] Additional context: '{additional_context[:100] if additional_context else 'None'}'")
             
-            mom_data = llm_generator.generate_mom(transcript, additional_context or None)
+            mom_data = extract_mom_from_transcript(
+                transcript,
+                objective=None,
+                instructions=additional_context or None
+            )
             print(f"[DEBUG] ✓ MOM generated successfully")
             print(f"[DEBUG] MOM data keys: {list(mom_data.keys()) if mom_data else None}")
             print(f"[DEBUG] MOM objective: {mom_data.get('objective', 'N/A')[:100] if mom_data else 'N/A'}")
@@ -175,7 +165,7 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             # Store in session (exclude transcript to avoid session size limits)
             print("\n[DEBUG] --- SESSION STORAGE STAGE ---")
             session['mom_data'] = mom_data
-            session['mom_text'] = llm_generator.render_mom_text(mom_data)
+            session['mom_text'] = render_mom_text(mom_data)
             session['additional_context'] = additional_context
             print(f"[DEBUG] ✓ Session data stored")
             print(f"[DEBUG] Session keys: {list(session.keys())}")
@@ -275,7 +265,7 @@ def create_app(config_name: Optional[str] = None) -> Flask:
                     if action:  # Only add if action is not empty
                         action_items.append({
                             'action': action,
-                            'owner': owner or 'Unassigned',
+                            'owner': owner or '',
                             'deadline': deadline,
                             'status': status
                         })
@@ -301,7 +291,7 @@ def create_app(config_name: Optional[str] = None) -> Flask:
                 
                 # Store updated data
                 session['mom_data'] = mom_data
-                session['mom_text'] = llm_generator.render_mom_text(mom_data)
+                session['mom_text'] = render_mom_text(mom_data)
                 session['text_override'] = False
             
             flash('MOM updated successfully!', 'success')

@@ -103,7 +103,7 @@ def mock_openai_generate():
 class TestCompleteTextWorkflow:
     """Test complete workflow: submit text transcript → generate → edit → validate → export."""
     
-    @patch('app.MOMGenerator.generate_mom')
+    @patch('app.extract_mom_from_transcript')
     @patch('app.PDFExporter.export_to_pdf')
     def test_complete_happy_path_text_transcript(self, mock_export, mock_generate, 
                                                    client, sample_transcript, mock_openai_generate):
@@ -170,7 +170,7 @@ class TestCompleteTextWorkflow:
         # Verify PDF export was called
         mock_export.assert_called_once()
     
-    @patch('app.MOMGenerator.generate_mom')
+    @patch('app.extract_mom_from_transcript')
     def test_session_persistence_across_workflow(self, mock_generate, 
                                                    client, sample_transcript, mock_openai_generate):
         """Test that session data persists throughout the workflow."""
@@ -195,7 +195,7 @@ class TestCompleteTextWorkflow:
             assert session['additional_context'] == 'Weekly standup'
             assert session['mom_data']['objective'] == mock_openai_generate['objective']
     
-    @patch('app.MOMGenerator.generate_mom')
+    @patch('app.extract_mom_from_transcript')
     def test_edit_page_modifications_preserved(self, mock_generate, 
                                                  client, sample_transcript, mock_openai_generate):
         """Test that user edits on edit page are preserved."""
@@ -237,9 +237,9 @@ class TestCompleteTextWorkflow:
 class TestCompleteAudioWorkflow:
     """Test complete workflow: upload audio → transcribe → generate → edit → validate → export."""
     
-    @patch('app.AudioTranscriber.transcribe_audio')
+    @patch('app.transcribe_audio')
     @patch('app.AudioTranscriber.validate_audio_file')
-    @patch('app.MOMGenerator.generate_mom')
+    @patch('app.extract_mom_from_transcript')
     @patch('app.PDFExporter.export_to_pdf')
     def test_complete_happy_path_audio_upload(self, mock_export, mock_generate, 
                                                 mock_validate_audio, mock_transcribe,
@@ -349,7 +349,7 @@ class TestWorkflowErrorScenarios:
         assert response.status_code == 302
         assert '/' in response.location
     
-    @patch('app.MOMGenerator.generate_mom')
+    @patch('app.extract_mom_from_transcript')
     def test_workflow_interruption_recovery(self, mock_generate, 
                                              client, sample_transcript, mock_openai_generate):
         """Test that users can't skip steps in the workflow."""
@@ -374,7 +374,7 @@ class TestWorkflowErrorScenarios:
 class TestWorkflowEdgeCases:
     """Test edge cases and boundary conditions in workflow."""
     
-    @patch('app.MOMGenerator.generate_mom')
+    @patch('app.extract_mom_from_transcript')
     def test_minimal_valid_transcript(self, mock_generate, client, mock_openai_generate):
         """Test workflow with minimum valid transcript (10+ words)."""
         mock_generate.return_value = mock_openai_generate
@@ -389,7 +389,7 @@ class TestWorkflowEdgeCases:
         assert response.status_code == 302
         assert '/edit' in response.location
     
-    @patch('app.MOMGenerator.generate_mom')
+    @patch('app.extract_mom_from_transcript')
     def test_very_long_transcript(self, mock_generate, client, mock_openai_generate):
         """Test workflow with very long transcript (1000+ words)."""
         mock_generate.return_value = mock_openai_generate
@@ -404,7 +404,7 @@ class TestWorkflowEdgeCases:
         assert response.status_code == 302
         assert '/edit' in response.location
     
-    @patch('app.MOMGenerator.generate_mom')
+    @patch('app.extract_mom_from_transcript')
     def test_transcript_with_special_characters(self, mock_generate, 
                                                   client, mock_openai_generate):
         """Test workflow with special characters in transcript."""
@@ -425,7 +425,7 @@ class TestWorkflowEdgeCases:
         assert response.status_code == 302
         assert '/edit' in response.location
     
-    @patch('app.MOMGenerator.generate_mom')
+    @patch('app.extract_mom_from_transcript')
     def test_empty_additional_context(self, mock_generate, 
                                        client, sample_transcript, mock_openai_generate):
         """Test workflow without providing additional context (optional field)."""
@@ -439,11 +439,11 @@ class TestWorkflowEdgeCases:
         # Should succeed
         assert response.status_code == 302
         mock_generate.assert_called_once()
-        # Verify None was passed for additional_context
+        # Verify None was passed for instructions
         call_args = mock_generate.call_args
-        assert call_args[0][1] is None or call_args[0][1] == ''
+        assert call_args.kwargs.get('instructions') in [None, '']
     
-    @patch('app.MOMGenerator.generate_mom')
+    @patch('app.extract_mom_from_transcript')
     @patch('app.PDFExporter.export_to_pdf')
     def test_multiple_workflow_executions_same_session(self, mock_export, mock_generate,
                                                          client, sample_transcript, 
@@ -480,7 +480,7 @@ class TestWorkflowEdgeCases:
 class TestWorkflowPerformance:
     """Test performance aspects of workflow (within reasonable bounds)."""
     
-    @patch('app.MOMGenerator.generate_mom')
+    @patch('app.extract_mom_from_transcript')
     def test_workflow_handles_maximum_attendees(self, mock_generate, 
                                                   client, sample_transcript):
         """Test workflow with maximum realistic number of attendees."""
@@ -505,7 +505,7 @@ class TestWorkflowPerformance:
         response = client.get('/edit')
         assert response.status_code == 200
     
-    @patch('app.MOMGenerator.generate_mom')
+    @patch('app.extract_mom_from_transcript')
     def test_workflow_handles_many_action_items(self, mock_generate, 
                                                   client, sample_transcript):
         """Test workflow with many action items."""

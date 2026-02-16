@@ -86,8 +86,8 @@
 <div id="loadingOverlay" class="loading-overlay" style="display: none;">
     <div class="loading-content">
         <div class="spinner"></div>
-        <h3>Processing Audio...</h3>
-        <p>This may take several minutes for large files.</p>
+        <h3 id="loadingTitle">Generating MOM...</h3>
+        <p id="loadingDetail">This may take a moment.</p>
         <p class="warning">⚠️ Do not close this page</p>
     </div>
 </div>
@@ -185,6 +185,15 @@ if (inputForm) {
     
     // Show loading overlay
     console.log('[ClearMeet] 📊 Showing loading overlay...');
+    const loadingTitle = document.getElementById('loadingTitle');
+    const loadingDetail = document.getElementById('loadingDetail');
+    if (audioInput) {
+        loadingTitle.textContent = 'Processing Audio...';
+        loadingDetail.textContent = 'This may take several minutes for large files.';
+    } else {
+        loadingTitle.textContent = 'Generating MOM...';
+        loadingDetail.textContent = 'This may take a moment.';
+    }
     document.getElementById('loadingOverlay').style.display = 'flex';
     
     formSubmitting = true;

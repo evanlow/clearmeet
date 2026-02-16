@@ -9,7 +9,7 @@
 - Upload audio recording (auto-transcribed using Whisper)
 
 ✅ **AI-Powered Generation**
-- Structured JSON output from GPT (objective, decisions, action items, attendees)
+- Structured JSON output from GPT (title, date, objective, decisions, action items, attendees)
 - Automatic extraction of key meeting information
 
 ✅ **Flexible Editing**
@@ -143,7 +143,7 @@ ALLOWED_AUDIO_EXTENSIONS=mp3,wav,m4a,ogg
 # OpenAI Model Configuration
 OPENAI_MODEL=gpt-4o-mini                    # Cost-effective option
 OPENAI_TEMPERATURE=0.3                      # 0.0-1.0 (lower = more focused)
-WHISPER_MODEL=whisper-1                     # Transcription model
+OPENAI_TRANSCRIBE_MODEL=whisper-1           # Transcription model
 ```
 
 ## Usage Workflow
@@ -154,7 +154,7 @@ WHISPER_MODEL=whisper-1                     # Transcription model
 - Optionally provide meeting context for better results
 
 ### 2. Review Generated MOM
-- AI extracts: objective, decisions, action items, attendees, summary
+- AI extracts: title, date, objective, decisions, action items, attendees, notes
 - Structured output rendered as formatted text
 
 ### 3. Edit & Refine
