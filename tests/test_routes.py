@@ -28,6 +28,35 @@ def client(app):
     return app.test_client()
 
 
+class TestHealthRoute:
+    """Tests for health check endpoint."""
+    
+    def test_health_returns_200(self, client):
+        """Test that health endpoint returns 200 status."""
+        response = client.get('/health')
+        assert response.status_code == 200
+    
+    def test_health_returns_json(self, client):
+        """Test that health endpoint returns JSON with correct fields."""
+        response = client.get('/health')
+        data = json.loads(response.data)
+        assert data['status'] == 'ok'
+        assert 'timestamp' in data
+        assert data['service'] == 'clearmeet'
+    
+    def test_health_has_valid_timestamp(self, client):
+        """Test that health endpoint returns ISO format timestamp."""
+        response = client.get('/health')
+        data = json.loads(response.data)
+        # Should be valid ISO format (no exception thrown)
+        from datetime import datetime
+        # Handle timezone-aware timestamp
+        ts = data['timestamp']
+        if ts.endswith('Z'):
+            ts = ts[:-1] + '+00:00'
+        datetime.fromisoformat(ts)
+
+
 class TestIndexRoute:
     """Tests for index route."""
     

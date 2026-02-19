@@ -3,16 +3,17 @@ ClearMeet Flask Application
 
 Main Flask app with routes for MOM generation workflow.
 """
-from flask import Flask, render_template, request, session, redirect, url_for, send_file, flash, g
+from flask import Flask, render_template, request, session, redirect, url_for, send_file, flash, g, jsonify
 from werkzeug.utils import secure_filename
 import os
 import json
-from datetime import datetime
+import logging
+from datetime import datetime, timezone
 from typing import Optional
 import threading
 import uuid
 
-from config import get_config, Config
+from config import get_config, Config, logger
 from core.parser import TranscriptParser
 from core.llm import extract_mom_from_transcript, render_mom_text, transcribe_audio
 from core.audio import AudioTranscriber
@@ -113,6 +114,21 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             session['_flashes'] = pending_flashes
         return render_template('index.html')
     
+    @app.route('/health', methods=['GET'])
+    def health():
+        """
+        Health check endpoint for monitoring and uptime checks.
+        
+        Returns:
+            JSON response with status and timestamp
+        """
+        logger.info("Health check requested")
+        return jsonify({
+            "status": "ok",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "service": "clearmeet"
+        }), 200
+    
     @app.route('/process', methods=['GET', 'POST'])
     @app.route('/generate', methods=['POST'])
     def process_input():
@@ -122,24 +138,15 @@ def create_app(config_name: Optional[str] = None) -> Flask:
         Returns redirect to edit page with structured MOM data.
         """
         if request.method == 'GET':
-            print("[DEBUG] ⚠️ WARNING: GET request to /process - redirecting to index")
+            logger.warning("GET request to /process - redirecting to index")
             flash('Please use the form to submit your transcript', 'warning')
             return redirect(url_for('index'))
         
         try:
-            print("\n" + "="*80)
-            print("[DEBUG] ===== PROCESS INPUT STARTED =====")
-            print(f"[DEBUG] Request method: {request.method}")
-            print(f"[DEBUG] Request URL: {request.url}")
-            print(f"[DEBUG] Form data keys: {list(request.form.keys())}")
-            print(f"[DEBUG] Files keys: {list(request.files.keys())}")
-            print(f"[DEBUG] Content-Type: {request.content_type}")
-            print(f"[DEBUG] transcript_text in form: {'transcript_text' in request.form}")
-            if 'transcript_text' in request.form:
-                transcript_preview = request.form['transcript_text'][:200] if len(request.form['transcript_text']) > 200 else request.form['transcript_text']
-                print(f"[DEBUG] transcript_text value (first 200 chars): '{transcript_preview}'")
-                print(f"[DEBUG] transcript_text length: {len(request.form['transcript_text'])}")
-            print("="*80 + "\n")
+            logger.info("Processing input started")
+            logger.debug(f"Request method: {request.method}")
+            logger.debug(f"Form data keys: {list(request.form.keys())}")
+            logger.debug(f"Files keys: {list(request.files.keys())}")
             
             # Clear any previous progress state
             global _progress_state

@@ -4,11 +4,20 @@ Configuration module for ClearMeet application.
 Handles environment variables and application settings.
 """
 import os
+import logging
 from typing import Optional
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
+# Configure logging (production-safe: no secrets logged)
+_LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
+logging.basicConfig(
+    level=_LOG_LEVEL,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger('clearmeet')
 
 
 class Config:
@@ -61,6 +70,9 @@ class Config:
         if not Config.SECRET_KEY or Config.SECRET_KEY == 'dev-secret-key-change-in-production':
             if not Config.DEBUG:
                 return False, "SECRET_KEY must be set in production"
+            else:
+                # Warn in development
+                logger.warning("Using development SECRET_KEY - change in production!")
         
         return True, ""
 

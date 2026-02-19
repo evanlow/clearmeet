@@ -262,7 +262,21 @@ pytest tests/ -v | findstr "passed"
 - Heroku account
 - Heroku CLI installed
 
-### Deployment Steps
+### Quick Start (3 Steps)
+
+```bash
+# 1. Create a Heroku app (replace 'my-clearmeet' with your app name)
+heroku create my-clearmeet
+
+# 2. Set environment variables
+heroku config:set OPENAI_API_KEY=sk-your-api-key-here \
+                  SECRET_KEY=your-production-secret-key-here
+
+# 3. Deploy
+git push heroku main
+```
+
+### Full Deployment Steps
 
 1. **Login to Heroku**
 ```bash
@@ -274,34 +288,114 @@ heroku login
 heroku create your-app-name
 ```
 
+**Note:** Replace `your-app-name` with your desired Heroku app name (must be globally unique).
+Example: `heroku create clearmeet-demo` would deploy to `clearmeet-demo.herokuapp.com`
+
 3. **Set environment variables**
 ```bash
 heroku config:set OPENAI_API_KEY=sk-your-api-key-here
-heroku config:set SECRET_KEY=your-production-secret-key
+heroku config:set SECRET_KEY=your-production-secret-key-here
 heroku config:set FLASK_ENV=production
 heroku config:set FLASK_DEBUG=False
+heroku config:set LOG_LEVEL=INFO
 ```
+
+**Important Environment Variables:**
+- `OPENAI_API_KEY` - Required. Your OpenAI API key (sk-...)
+- `SECRET_KEY` - Required. Use a strong random key (e.g., `python -c "import secrets; print(secrets.token_hex(32))"`)
+- `FLASK_ENV=production` - Recommended. Disables debug mode
+- `LOG_LEVEL=INFO` - Optional. Set to DEBUG for more verbose logging
 
 4. **Deploy**
 ```bash
 git push heroku main
 ```
 
-5. **Open application**
+5. **Monitor deployment**
+```bash
+heroku logs --tail
+```
+
+6. **Open application**
 ```bash
 heroku open
+```
+
+### Health Check
+
+The application includes a health check endpoint for monitoring:
+```bash
+curl https://your-app-name.herokuapp.com/health
+```
+
+Returns:
+```json
+{
+  "status": "ok",
+  "timestamp": "2026-02-19T10:30:45.123456",
+  "service": "clearmeet"
+}
+```
+
+Use this endpoint with monitoring services (Uptime Robot, Datadog, New Relic, etc.)
+
+### Generating a Strong SECRET_KEY
+
+Generate a cryptographically secure secret key:
+```bash
+# On macOS/Linux
+python3 -c "import secrets; print(secrets.token_hex(32))"
+
+# On Windows PowerShell
+python -c "import secrets; print(secrets.token_hex(32))"
+```
+
+Then use the generated key:
+```bash
+heroku config:set SECRET_KEY=<generated-key-here>
 ```
 
 ### Heroku Configuration
 
 The project includes:
-- `Procfile` - Specifies Gunicorn web server
+- `Procfile` - Specifies Gunicorn web server configuration
 - `runtime.txt` - Specifies Python 3.11.8
-- `requirements.txt` - All dependencies
+- `.python-version` - Local development Python version (pyenv compatible)
+- `requirements.txt` - All Python dependencies
 
 **Heroku Eco Plan** ($5/month per dyno):
-- 1000 dyno hours/month
+- 1000 dyno hours/month (sufficient for one always-on dyno)
 - Suitable for internal corporate tools with moderate traffic
+- Free tier also available (sleeps after 30 min inactivity)
+
+### Troubleshooting
+
+**Error: Application failed to initialize**
+```bash
+heroku logs --tail
+```
+Check logs for missing environment variables (especially `OPENAI_API_KEY` and `SECRET_KEY`)
+
+**Error: Push rejected - no changes**
+```bash
+# Force push if code changed locally
+git push heroku main --force
+```
+
+**App crashes after deploy**
+```bash
+# Check Heroku logs
+heroku logs --tail
+
+# Restart the app
+heroku restart
+
+# Scale up if needed
+heroku ps:scale web=1
+```
+
+**Cannot connect to database** 
+This is a free tier SQLite-based app (no external database). If you add database features, add Heroku Postgres.
 
 ## Architecture Overview
 
