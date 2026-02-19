@@ -20,6 +20,51 @@ class ValidationItem:
 
 class MOMValidator:
     """Validate MOM completeness and quality."""
+
+    @staticmethod
+    def compute_validation_issues(mom: MeetingMOM, mom_text: str) -> list[str]:
+        """
+        Compute validation issues for a MOM.
+
+        Args:
+            mom: MeetingMOM object (can be model_constructed)
+            mom_text: Full MOM or transcript text to scan
+
+        Returns:
+            List of issue messages
+        """
+        issues = []
+
+        objective = (mom.objective or "").strip() if hasattr(mom, "objective") else ""
+        if not objective:
+            issues.append("Meeting objective is missing")
+
+        decisions = getattr(mom, "decisions", []) or []
+        notes = (getattr(mom, "notes", "") or "").lower()
+        decision_note_present = "no decision" in notes or "no decisions" in notes
+        if not decisions and not decision_note_present:
+            issues.append("No decisions documented (note explicitly if none were made)")
+
+        action_items = getattr(mom, "action_items", []) or []
+        for index, item in enumerate(action_items, start=1):
+            if isinstance(item, dict):
+                owner = (item.get("owner") or "").strip()
+                deadline = (item.get("deadline") or "").strip()
+            else:
+                owner = (getattr(item, "owner", "") or "").strip()
+                deadline = (getattr(item, "deadline", "") or "").strip()
+
+            if not owner:
+                issues.append(f"Action item {index} is missing an owner")
+            if not deadline:
+                issues.append(f"Action item {index} is missing a deadline")
+
+        scan_text = (mom_text or "").lower()
+        confidential_markers = ["$", "sgd", "usd", "confidential", "salary", "nric", "bank"]
+        if any(marker in scan_text for marker in confidential_markers):
+            issues.append("Potential confidential information detected (review before circulation)")
+
+        return issues
     
     @staticmethod
     def get_validation_checklist() -> list[ValidationItem]:
@@ -31,48 +76,28 @@ class MOMValidator:
         """
         return [
             ValidationItem(
-                id="title_present",
-                label="Meeting title is clearly stated",
+                id="decisions_captured",
+                label="Decisions accurately captured",
                 required=True
             ),
             ValidationItem(
-                id="date_present",
-                label="Meeting date is provided",
+                id="action_items_owners",
+                label="All action items have owners",
                 required=True
             ),
             ValidationItem(
-                id="objective_present",
-                label="Meeting objective is clearly stated",
+                id="action_items_deadlines",
+                label="All action items have deadlines",
                 required=True
             ),
             ValidationItem(
-                id="attendees_listed",
-                label="All attendees are listed",
-                required=False
-            ),
-            ValidationItem(
-                id="decisions_documented",
-                label="All decisions are documented",
+                id="no_confidential_info",
+                label="No confidential information included",
                 required=True
             ),
             ValidationItem(
-                id="action_items_assigned",
-                label="All action items have owners assigned",
-                required=True
-            ),
-            ValidationItem(
-                id="deadlines_specified",
-                label="Deadlines are specified for time-sensitive items",
-                required=False
-            ),
-            ValidationItem(
-                id="language_professional",
-                label="Language is professional and clear",
-                required=True
-            ),
-            ValidationItem(
-                id="reviewed_by_manager",
-                label="Reviewed and approved by meeting organizer/manager",
+                id="ready_within_24h",
+                label="Ready to circulate within 24 hours",
                 required=True
             ),
         ]

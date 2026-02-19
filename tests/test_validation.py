@@ -10,6 +10,7 @@ Tests cover:
 """
 import pytest
 from core.validation import MOMValidator, ValidationItem
+from core.schema import MeetingMOM
 
 
 class TestValidationItem:
@@ -92,13 +93,12 @@ class TestMOMValidator:
         """Test that checklist contains expected validation items."""
         checklist = MOMValidator.get_validation_checklist()
         ids = [item.id for item in checklist]
-        
-        assert "title_present" in ids
-        assert "date_present" in ids
-        assert "objective_present" in ids
-        assert "attendees_listed" in ids
-        assert "decisions_documented" in ids
-        assert "action_items_assigned" in ids
+
+        assert "decisions_captured" in ids
+        assert "action_items_owners" in ids
+        assert "action_items_deadlines" in ids
+        assert "no_confidential_info" in ids
+        assert "ready_within_24h" in ids
     
     def test_validation_checklist_items_have_labels(self):
         """Test that all checklist items have labels."""
@@ -116,14 +116,14 @@ class TestMOMValidator:
         assert required_count > 0
         assert optional_count >= 0  # May have optional items
     
-    def test_validate_mom_content_accepts_complete_data(self, complete_mom_data):
-        """Test validation passes for complete MOM data."""
-        is_valid, issues = MOMValidator.validate_mom_content(complete_mom_data)
-        assert is_valid is True
+    def test_compute_validation_issues_accepts_complete_data(self, complete_mom_data):
+        """Test issues empty for complete MOM data."""
+        mom = MeetingMOM.model_construct(**complete_mom_data)
+        issues = MOMValidator.compute_validation_issues(mom, "")
         assert len(issues) == 0
     
-    def test_validate_mom_content_rejects_missing_objective(self):
-        """Test validation fails for missing objective."""
+    def test_compute_validation_issues_rejects_missing_objective(self):
+        """Test missing objective produces issue."""
         data = {
             "title": "Weekly Sync",
             "date": "2026-02-16",
@@ -132,12 +132,12 @@ class TestMOMValidator:
             "decisions": [{"text": "Decision 1"}],
             "action_items": []
         }
-        is_valid, issues = MOMValidator.validate_mom_content(data)
-        assert is_valid is False
+        mom = MeetingMOM.model_construct(**data)
+        issues = MOMValidator.compute_validation_issues(mom, "")
         assert any("objective" in issue.lower() for issue in issues)
     
-    def test_validate_mom_content_rejects_short_objective(self):
-        """Test validation fails for too-short objective."""
+    def test_compute_validation_issues_allows_short_objective(self):
+        """Short objective is allowed unless empty per new rule."""
         data = {
             "title": "Weekly Sync",
             "date": "2026-02-16",
@@ -146,26 +146,12 @@ class TestMOMValidator:
             "decisions": [{"text": "Decision 1"}],
             "action_items": []
         }
-        is_valid, issues = MOMValidator.validate_mom_content(data)
-        assert is_valid is False
-        assert any("objective" in issue.lower() for issue in issues)
+        mom = MeetingMOM.model_construct(**data)
+        issues = MOMValidator.compute_validation_issues(mom, "")
+        assert all("objective" not in issue.lower() for issue in issues)
     
-    def test_validate_mom_content_rejects_no_attendees(self):
-        """Test validation fails for empty attendees list."""
-        data = {
-            "title": "Weekly Sync",
-            "date": "2026-02-16",
-            "objective": "Valid objective here",
-            "attendees": [],
-            "decisions": [{"text": "Decision 1"}],
-            "action_items": []
-        }
-        is_valid, issues = MOMValidator.validate_mom_content(data)
-        assert is_valid is False
-        assert any("attendees" in issue.lower() for issue in issues)
-    
-    def test_validate_mom_content_rejects_no_decisions(self):
-        """Test validation fails for empty decisions list."""
+    def test_compute_validation_issues_flags_no_decisions_without_note(self):
+        """Test decisions must be present or explicitly noted as missing."""
         data = {
             "title": "Weekly Sync",
             "date": "2026-02-16",
@@ -174,12 +160,27 @@ class TestMOMValidator:
             "decisions": [],
             "action_items": []
         }
-        is_valid, issues = MOMValidator.validate_mom_content(data)
-        assert is_valid is False
-        assert any("decision" in issue.lower() for issue in issues)
+        mom = MeetingMOM.model_construct(**data)
+        issues = MOMValidator.compute_validation_issues(mom, "")
+        assert any("decisions" in issue.lower() for issue in issues)
     
-    def test_validate_mom_content_checks_action_item_tasks(self):
-        """Test validation checks action item task descriptions."""
+    def test_compute_validation_issues_accepts_decisions_missing_note(self):
+        """Test notes can explicitly mention no decisions."""
+        data = {
+            "title": "Weekly Sync",
+            "date": "2026-02-16",
+            "objective": "Valid objective here",
+            "attendees": ["Alice"],
+            "decisions": [],
+            "notes": "No decisions were made in this meeting.",
+            "action_items": []
+        }
+        mom = MeetingMOM.model_construct(**data)
+        issues = MOMValidator.compute_validation_issues(mom, "")
+        assert all("decisions" not in issue.lower() for issue in issues)
+    
+    def test_compute_validation_issues_flags_missing_owner_and_deadline(self):
+        """Test missing owner/deadline issues are reported."""
         data = {
             "title": "Weekly Sync",
             "date": "2026-02-16",
@@ -187,50 +188,31 @@ class TestMOMValidator:
             "attendees": ["Alice"],
             "decisions": [{"text": "Decision 1"}],
             "action_items": [
-                {"action": "", "owner": "Alice", "deadline": None}  # Empty action
+                {"action": "Task", "owner": "", "deadline": None}
             ]
         }
-        is_valid, issues = MOMValidator.validate_mom_content(data)
-        assert is_valid is False
-        assert any("action" in issue.lower() for issue in issues)
-    
-    def test_validate_mom_content_checks_action_item_owners(self):
-        """Test validation checks action item owners."""
-        data = {
-            "title": "Weekly Sync",
-            "date": "2026-02-16",
-            "objective": "Valid objective here",
-            "attendees": ["Alice"],
-            "decisions": [{"text": "Decision 1"}],
-            "action_items": [
-                {"action": "Valid action", "owner": "", "deadline": None}  # Missing owner
-            ]
-        }
-        is_valid, issues = MOMValidator.validate_mom_content(data)
-        assert is_valid is False
+        mom = MeetingMOM.model_construct(**data)
+        issues = MOMValidator.compute_validation_issues(mom, "")
         assert any("owner" in issue.lower() for issue in issues)
+        assert any("deadline" in issue.lower() for issue in issues)
     
-    def test_validate_mom_content_rejects_unassigned_owner(self):
-        """Test validation rejects 'Unassigned' or 'N/A' owners."""
-        data = {
-            "title": "Weekly Sync",
-            "date": "2026-02-16",
-            "objective": "Valid objective here",
-            "attendees": ["Alice"],
-            "decisions": [{"text": "Decision 1"}],
-            "action_items": [
-                {"action": "Valid action", "owner": "Unassigned", "deadline": None}
-            ]
-        }
-        is_valid, issues = MOMValidator.validate_mom_content(data)
-        assert is_valid is False
-        assert any("owner" in issue.lower() for issue in issues)
+    def test_compute_validation_issues_flags_confidential_markers(self, complete_mom_data):
+        """Test confidential markers are detected in text."""
+        mom = MeetingMOM.model_construct(**complete_mom_data)
+        issues = MOMValidator.compute_validation_issues(mom, "This contains SGD 1000 and bank details")
+        assert any("confidential" in issue.lower() for issue in issues)
+    
+    def test_validate_mom_content_accepts_complete_data(self, complete_mom_data):
+        """Legacy validator still passes for complete MOM data."""
+        is_valid, issues = MOMValidator.validate_mom_content(complete_mom_data)
+        assert is_valid is True
+        assert len(issues) == 0
     
     def test_validate_mom_content_returns_all_issues(self, incomplete_mom_data):
-        """Test that validation returns all issues found."""
+        """Test that legacy validation returns all issues found."""
         is_valid, issues = MOMValidator.validate_mom_content(incomplete_mom_data)
         assert is_valid is False
-        assert len(issues) >= 3  # Multiple issues should be found
+        assert len(issues) >= 3
     
     def test_validate_checklist_all_required_checked(self):
         """Test checklist validation passes when all required items checked."""

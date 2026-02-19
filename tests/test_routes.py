@@ -317,7 +317,7 @@ class TestValidateRoute:
             sess['mom_data'] = {
                 'title': 'Test Meeting',
                 'date': '2026-02-16',
-                'objective': 'short',
+                'objective': '',
                 'attendees': ['Alice'],
                 'decisions': [{'text': 'Decision 1'}],
                 'action_items': []
@@ -328,7 +328,7 @@ class TestValidateRoute:
         response = client.get('/validate')
 
         assert response.status_code == 200
-        assert b'Meeting objective is missing or too short' in response.data
+        assert b'Meeting objective is missing' in response.data
 
     def test_validate_post_sets_validated_and_redirects_export(self, client):
         """POST /validate should require checklist and set validated flag."""
@@ -344,13 +344,11 @@ class TestValidateRoute:
             sess['mom_text'] = 'Valid MOM text that is long enough for text length checks.'
 
         checklist_ids = [
-            'title_present',
-            'date_present',
-            'objective_present',
-            'decisions_documented',
-            'action_items_assigned',
-            'language_professional',
-            'reviewed_by_manager'
+            'decisions_captured',
+            'action_items_owners',
+            'action_items_deadlines',
+            'no_confidential_info',
+            'ready_within_24h'
         ]
 
         with client:

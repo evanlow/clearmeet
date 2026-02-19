@@ -17,7 +17,7 @@ from core.parser import TranscriptParser
 from core.llm import extract_mom_from_transcript, render_mom_text, transcribe_audio
 from core.audio import AudioTranscriber
 from core.render import mom_to_text, apply_user_edits
-from core.schema import validate_mom_dict
+from core.schema import validate_mom_dict, MeetingMOM
 from core.validation import MOMValidator, ValidationItem
 from core.export import PDFExporter
 
@@ -532,9 +532,20 @@ def create_app(config_name: Optional[str] = None) -> Flask:
         # Get validation checklist
         checklist = MOMValidator.get_validation_checklist()
         
-        # Validate structured MOM content even when text override is enabled
+        # Compute content issues using structured data and text
         mom_data = session.get('mom_data', {})
-        is_valid, content_issues = MOMValidator.validate_mom_content(mom_data)
+        safe_mom_data = {
+            'title': mom_data.get('title', ''),
+            'date': mom_data.get('date', ''),
+            'objective': mom_data.get('objective', ''),
+            'decisions': mom_data.get('decisions', []),
+            'action_items': mom_data.get('action_items', []),
+            'attendees': mom_data.get('attendees'),
+            'parking_lot': mom_data.get('parking_lot'),
+            'notes': mom_data.get('notes'),
+            'confidentiality_flags': mom_data.get('confidentiality_flags'),
+        }
+        mom_obj = MeetingMOM.model_construct(**safe_mom_data)
         
         # Validate text length
         mom_text = session.get('mom_text', '')
@@ -542,6 +553,15 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             loaded_text = _load_text_from_path(session.get('mom_text_path'))
             if loaded_text:
                 mom_text = loaded_text
+        transcript_text = session.get('transcript', '')
+        if session.get('transcript_path') and (not transcript_text or transcript_text.endswith('...')):
+            loaded_transcript = _load_text_from_path(session.get('transcript_path'))
+            if loaded_transcript:
+                transcript_text = loaded_transcript
+
+        combined_text = f"{mom_text}\n{transcript_text}".strip()
+        content_issues = MOMValidator.compute_validation_issues(mom_obj, combined_text)
+
         text_valid, text_message = MOMValidator.validate_text_length(mom_text)
         if not text_valid:
             content_issues.append(text_message)
