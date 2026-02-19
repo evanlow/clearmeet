@@ -25,6 +25,13 @@
 - PDF export with professional formatting
 - Metadata support (meeting date, title)
 
+✅ **Secure Audio Upload**
+- Supported formats: `.mp3, .wav, .m4a, .ogg, .webm, .mp4, .mpeg, .mpga`
+- Maximum file size: 200MB (with automatic chunking for large files)
+- Secure filename handling (prevents path traversal attacks)
+- Automatic temporary file cleanup after transcription
+- Validation: Both transcript and audio cannot be empty
+
 ## Tech Stack
 
 - **Backend**: Flask 3.0
@@ -136,15 +143,49 @@ SESSION_TYPE=filesystem
 PERMANENT_SESSION_LIFETIME=3600             # 1 hour
 
 # File Upload Configuration
-MAX_CONTENT_LENGTH=209715200                # 200MB (in bytes)
-UPLOAD_FOLDER=temp_uploads
-ALLOWED_AUDIO_EXTENSIONS=mp3,wav,m4a,ogg
+MAX_CONTENT_LENGTH=209715200                # 200MB (in bytes) - max audio file size
+UPLOAD_FOLDER=temp_uploads                  # Temporary storage for uploaded audio files
+ALLOWED_AUDIO_EXTENSIONS=mp3,wav,m4a,ogg    # Supported audio formats (comma-separated)
+CHUNK_SIZE_MB=20                            # Target chunk size for splitting large files
 
 # OpenAI Model Configuration
 OPENAI_MODEL=gpt-4o-mini                    # Cost-effective option
 OPENAI_TEMPERATURE=0.3                      # 0.0-1.0 (lower = more focused)
 OPENAI_TRANSCRIBE_MODEL=whisper-1           # Transcription model
 ```
+
+## Audio Upload Security
+
+ClearMeet implements several security measures for audio file uploads:
+
+### Supported Formats
+- **MP3**, **WAV**, **M4A**, **OGG**, **WEBM**, **MP4**, **MPEG**, **MPGA**
+- Format validation prevents execution of unexpected file types
+- Invalid formats rejected with clear error messages
+
+### File Size Handling
+- **Maximum upload**: 200MB (configurable via `MAX_CONTENT_LENGTH`)
+- **Large file chunking**: Files >20MB automatically split into chunks for Whisper API (which has 25MB limit)
+- **Streaming transcription**: Progress updates sent via Server-Sent Events during processing
+- **Automatic cleanup**: Temporary files deleted immediately after transcription
+
+### Filename Security
+- **Secure filename sanitization** using `werkzeug.utils.secure_filename`
+- **Prevents path traversal attacks** (e.g., `../../etc/passwd`)
+- **Stored in isolated directory**: `temp_uploads/` folder
+- **Unique naming** for concurrent uploads
+
+### Input Validation
+- **File existence check**: Verifies file was actually created
+- **Extension validation**: Only allowed formats accepted
+- **Size validation**: Rejects files exceeding upload limit
+- **Empty file detection**: Prevents zero-byte files
+- **Require transcript**: Error if neither audio nor text transcript provided
+
+### Session Management
+- Large transcripts persisted to disk (not stored in session cookies)
+- Temporary files cleaned up after processing
+- Session size optimized to prevent cookie overflow
 
 ## Usage Workflow
 
