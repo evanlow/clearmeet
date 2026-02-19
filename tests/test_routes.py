@@ -253,6 +253,25 @@ class TestValidateRoute:
         
         assert response.status_code == 200
 
+    def test_validate_still_checks_structured_with_text_override(self, client):
+        """Text override should not bypass structured validation checks."""
+        with client.session_transaction() as sess:
+            sess['mom_data'] = {
+                'title': 'Test Meeting',
+                'date': '2026-02-16',
+                'objective': 'short',
+                'attendees': ['Alice'],
+                'decisions': [{'text': 'Decision 1'}],
+                'action_items': []
+            }
+            sess['mom_text'] = 'This is a sufficiently long edited MOM text override for validation page.'
+            sess['text_override'] = True
+
+        response = client.get('/validate')
+
+        assert response.status_code == 200
+        assert b'Meeting objective is missing or too short' in response.data
+
 
 class TestExportRoute:
     """Tests for export route."""

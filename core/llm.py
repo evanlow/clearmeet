@@ -11,6 +11,7 @@ from openai import OpenAI
 from openai import OpenAIError
 
 from core.audio import AudioTranscriber
+from core.render import mom_to_text
 from core.schema import MeetingMOM, validate_mom_dict
 
 
@@ -210,77 +211,52 @@ def render_mom_text(mom_data: dict) -> str:
     if not mom_data:
         return ""
 
-    lines = []
-    lines.append("MINUTES OF MEETING")
-    lines.append("=" * 60)
-    lines.append("")
+    try:
+        typed_mom = validate_mom_dict(mom_data)
+    except ValueError:
+        decisions = []
+        for decision in mom_data.get('decisions', []):
+            if isinstance(decision, dict):
+                text = (decision.get('text') or '').strip()
+            else:
+                text = str(decision).strip()
+            if text:
+                decisions.append({'text': text})
 
-    # Title and date
-    if mom_data.get('title'):
-        lines.append("MEETING TITLE:")
-        lines.append(mom_data['title'])
-        lines.append("")
-    if mom_data.get('date'):
-        lines.append("MEETING DATE:")
-        lines.append(mom_data['date'])
-        lines.append("")
+        action_items = []
+        for item in mom_data.get('action_items', []):
+            if not isinstance(item, dict):
+                continue
+            action = (item.get('action') or '').strip()
+            if not action:
+                continue
+            action_items.append({
+                'action': action,
+                'owner': (item.get('owner') or '').strip(),
+                'deadline': item.get('deadline') or None,
+                'status': (item.get('status') or 'Open').strip() or 'Open',
+            })
 
-    # Objective
-    if mom_data.get('objective'):
-        lines.append("MEETING OBJECTIVE:")
-        lines.append(mom_data['objective'])
-        lines.append("")
+        fallback_data = {
+            'title': (mom_data.get('title') or 'Meeting Minutes').strip() or 'Meeting Minutes',
+            'date': (mom_data.get('date') or 'Unknown Date').strip() or 'Unknown Date',
+            'objective': (mom_data.get('objective') or '').strip() or 'Objective not provided.',
+            'decisions': decisions,
+            'action_items': action_items,
+            'attendees': mom_data.get('attendees'),
+            'parking_lot': mom_data.get('parking_lot'),
+            'notes': mom_data.get('notes'),
+            'confidentiality_flags': mom_data.get('confidentiality_flags'),
+        }
 
-    # Attendees
-    if mom_data.get('attendees'):
-        lines.append("ATTENDEES:")
-        for attendee in mom_data['attendees']:
-            lines.append(f"  • {attendee}")
-        lines.append("")
+        if len(fallback_data['objective']) < 10:
+            fallback_data['objective'] = 'Objective not provided.'
+        if not fallback_data['decisions']:
+            fallback_data['decisions'] = [{'text': 'No decisions documented.'}]
 
-    # Decisions
-    if mom_data.get('decisions'):
-        lines.append("DECISIONS MADE:")
-        for i, decision in enumerate(mom_data['decisions'], 1):
-            text = decision.get('text') if isinstance(decision, dict) else str(decision)
-            lines.append(f"  {i}. {text}")
-        lines.append("")
+        try:
+            typed_mom = validate_mom_dict(fallback_data)
+        except ValueError:
+            return ""
 
-    # Action Items
-    if mom_data.get('action_items'):
-        lines.append("ACTION ITEMS:")
-        for i, item in enumerate(mom_data['action_items'], 1):
-            action = item.get('action', 'N/A')
-            owner = item.get('owner') or 'Unassigned'
-            deadline = item.get('deadline') or 'No deadline specified'
-            status = item.get('status') or 'Open'
-            lines.append(f"  {i}. {action}")
-            lines.append(f"     Owner: {owner}")
-            lines.append(f"     Deadline: {deadline}")
-            lines.append(f"     Status: {status}")
-        lines.append("")
-
-    # Parking lot
-    if mom_data.get('parking_lot'):
-        lines.append("PARKING LOT:")
-        for i, item in enumerate(mom_data['parking_lot'], 1):
-            lines.append(f"  {i}. {item}")
-        lines.append("")
-
-    # Notes
-    if mom_data.get('notes'):
-        lines.append("NOTES:")
-        lines.append(mom_data['notes'])
-        lines.append("")
-
-    # Confidentiality
-    if mom_data.get('confidentiality_flags'):
-        lines.append("CONFIDENTIALITY:")
-        for flag in mom_data['confidentiality_flags']:
-            lines.append(f"  • {flag}")
-        lines.append("")
-
-    lines.append("=" * 60)
-    lines.append("End of Minutes")
-
-    return "\n".join(lines)
+    return mom_to_text(typed_mom)

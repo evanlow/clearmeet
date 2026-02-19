@@ -442,11 +442,9 @@ def create_app(config_name: Optional[str] = None) -> Flask:
         # Get validation checklist
         checklist = MOMValidator.get_validation_checklist()
         
-        # Validate MOM content if not using text override
-        content_issues = []
-        if not session.get('text_override', False):
-            mom_data = session.get('mom_data', {})
-            is_valid, content_issues = MOMValidator.validate_mom_content(mom_data)
+        # Validate structured MOM content even when text override is enabled
+        mom_data = session.get('mom_data', {})
+        is_valid, content_issues = MOMValidator.validate_mom_content(mom_data)
         
         # Validate text length
         mom_text = session.get('mom_text', '')

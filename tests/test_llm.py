@@ -165,12 +165,13 @@ class TestLLMFunctions:
         text = render_mom_text(sample_mom_data)
 
         assert "MINUTES OF MEETING" in text
-        assert "MEETING TITLE:" in text
-        assert "MEETING DATE:" in text
-        assert "MEETING OBJECTIVE:" in text
-        assert "ATTENDEES:" in text
-        assert "DECISIONS MADE:" in text
-        assert "ACTION ITEMS:" in text
+        assert "Title:" in text
+        assert "Date:" in text
+        assert "Objective:" in text
+        assert "Attendees:" in text
+        assert "Key Decisions:" in text
+        assert "Action Items:" in text
+        assert "Audit:" in text
         assert sample_mom_data["objective"] in text
         assert sample_mom_data["decisions"][0]["text"] in text
         assert sample_mom_data["action_items"][0]["action"] in text
@@ -190,7 +191,7 @@ class TestLLMFunctions:
         mom_data = {
             "title": "Test Meeting",
             "date": "2026-02-16",
-            "objective": "Test",
+            "objective": "Test objective long enough",
             "decisions": [],
             "action_items": [
                 {"action": "Do something", "owner": "Alice", "deadline": None}
