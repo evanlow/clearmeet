@@ -1,311 +1,115 @@
 {% extends "base.html" %}
 
-{% block title %}ClearMeet - Generate MOM{% endblock %}
+{% block title %}ClearMeet - Input{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h2>Generate Minutes of Meeting</h2>
-    <p>Paste a transcript or upload an audio recording to automatically generate structured meeting minutes.</p>
+    <h2>Input</h2>
+    <p>Paste a transcript or upload an audio file to generate structured meeting minutes.</p>
 </div>
 
 <div class="card">
     <form action="/generate" method="POST" enctype="multipart/form-data" id="inputForm">
-
-        <div class="form-section">
-            <h3>Meeting Metadata</h3>
-
-            <div class="form-group">
-                <label for="title">Title (optional)</label>
-                <input
-                    type="text"
-                    name="title"
-                    id="title"
-                    class="form-control"
-                    placeholder="Weekly Leadership Sync"
-                >
-            </div>
-
-            <div class="form-group">
-                <label for="date">Date (optional)</label>
-                <input
-                    type="text"
-                    name="date"
-                    id="date"
-                    class="form-control"
-                    placeholder="2026-02-19"
-                >
-            </div>
-
-            <div class="form-group">
-                <label for="objective">Objective (optional)</label>
-                <input
-                    type="text"
-                    name="objective"
-                    id="objective"
-                    class="form-control"
-                    placeholder="Review delivery status and unblock dependencies"
-                >
-            </div>
-
-            <div class="form-group">
-                <label for="instructions">Instructions (optional)</label>
-                <textarea
-                    name="instructions"
-                    id="instructions"
-                    rows="3"
-                    class="form-control"
-                    placeholder="Any special output instructions"
-                ></textarea>
-            </div>
+        <div class="form-group">
+            <label for="objective">Objective (optional)</label>
+            <input
+                type="text"
+                name="objective"
+                id="objective"
+                class="form-control"
+                placeholder="Review delivery status and unblock dependencies"
+            >
         </div>
-        
-        <div class="form-section">
-            <h3>Input Method</h3>
-            
-            <!-- Tab selection -->
-            <div class="tab-selector">
-                <button type="button" class="tab-btn active" data-tab="text-tab">
-                    Paste Transcript
-                </button>
-                <button type="button" class="tab-btn" data-tab="audio-tab">
-                    Upload Audio
-                </button>
-            </div>
-            
-            <!-- Text transcript tab -->
-            <div class="tab-content active" id="text-tab">
-                <div class="form-group">
-                    <label for="transcript_text">Meeting Transcript</label>
-                    <textarea 
-                        name="transcript_text" 
-                        id="transcript_text" 
-                        rows="12" 
-                        class="form-control"
-                        placeholder="Paste your meeting transcript here...&#10;&#10;Example:&#10;Alice: Good morning everyone. Today we need to decide on...&#10;Bob: I recommend we increase...&#10;Alice: Great point. Let's also discuss..."
-                    ></textarea>
-                    <div class="word-counter">
-                        <span id="word-count" class="word-count-insufficient">0 words</span>
-                        <span class="word-requirement"> / 50+ words recommended for better results</span>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Audio upload tab -->
-            <div class="tab-content" id="audio-tab">
-                <div class="form-group">
-                    <label for="audio_file">Audio Recording</label>
-                    <input 
-                        type="file" 
-                        name="audio_file" 
-                        id="audio_file" 
-                        class="form-control"
-                        accept=".mp3,.wav,.m4a,.ogg,.webm,.mp4,.mpeg,.mpga"
-                    >
-                    <small class="form-text">Supported formats: MP3, WAV, M4A, OGG (max 25MB)</small>
-                    <div class="info-note" style="margin-top: 1rem; padding: 0.75rem; background-color: #eff6ff; border-left: 3px solid #2563eb; border-radius: 0.25rem;">
-                        <strong>How it works:</strong> Your audio will be transcribed using OpenAI Whisper, then processed to generate the MOM. No need to type a transcript!
-                    </div>
-                </div>
-            </div>
+
+        <div class="form-group">
+            <label for="instructions">Instructions (optional)</label>
+            <textarea
+                name="instructions"
+                id="instructions"
+                rows="3"
+                class="form-control"
+                placeholder="Any special formatting or focus instructions"
+            ></textarea>
         </div>
-        
-        <div class="form-section">
-            <h3>Additional Context (Optional)</h3>
-            <div class="form-group">
-                <label for="additional_context">Meeting Purpose or Context</label>
-                <textarea 
-                    name="additional_context" 
-                    id="additional_context" 
-                    rows="3" 
-                    class="form-control"
-                    placeholder="Example: Weekly team standup to review Q1 priorities and blockers"
-                ></textarea>
-                <small class="form-text">Helps improve MOM quality by providing context</small>
-            </div>
+
+        <div class="form-group">
+            <label for="transcript_text">Transcript</label>
+            <textarea
+                name="transcript_text"
+                id="transcript_text"
+                rows="12"
+                class="form-control"
+                placeholder="Paste your meeting transcript here..."
+            ></textarea>
         </div>
-        
+
+        <div class="form-group">
+            <label for="audio_file">Audio Upload (optional)</label>
+            <input
+                type="file"
+                name="audio_file"
+                id="audio_file"
+                class="form-control"
+                accept=".mp3,.wav,.m4a,.ogg,.webm,.mp4,.mpeg,.mpga"
+            >
+            <small class="form-text">Supported formats: MP3, WAV, M4A, OGG (max 25MB)</small>
+        </div>
+
         <div class="form-actions">
             <button type="submit" class="btn btn-primary btn-large">Generate MOM</button>
         </div>
     </form>
 </div>
 
-<!-- Loading Overlay -->
-<div id="loadingOverlay" class="loading-overlay" style="display: none;">
-    <div class="loading-content">
+<div id="loadingOverlay" class="loading-overlay" aria-live="polite" style="display: none;">
+    <div class="loading-card">
         <div class="spinner"></div>
         <h3 id="loadingTitle">Generating MOM...</h3>
         <p id="loadingDetail">This may take a moment.</p>
-        <p class="warning">⚠️ Do not close this page</p>
+        <p class="loading-warning">Do not close this page</p>
     </div>
-</div>
-
-<div class="info-card">
-    <h3>How It Works</h3>
-    <ol class="steps-list">
-        <li><strong>Input:</strong> Provide a transcript (text) or audio recording</li>
-        <li><strong>Generate:</strong> AI extracts key information and creates structured MOM</li>
-        <li><strong>Edit:</strong> Review and edit decisions, action items, and objectives</li>
-        <li><strong>Validate:</strong> Complete checklist to ensure quality</li>
-        <li><strong>Export:</strong> Download professional PDF</li>
-    </ol>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-console.log('[ClearMeet] JavaScript loaded successfully');
-console.log('[ClearMeet] Current URL:', window.location.href);
-console.log('[ClearMeet] Form element:', document.getElementById('inputForm'));
-
-// Tab switching
-document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-        console.log('[ClearMeet] Tab clicked:', this.dataset.tab);
-        // Remove active class from all tabs and contents
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        
-        // Add active class to clicked tab and corresponding content
-        this.classList.add('active');
-        const tabId = this.dataset.tab;
-        document.getElementById(tabId).classList.add('active');
-        
-        // NO LONGER DISABLING FIELDS - let server decide which input to use
-        // Disabled fields don't submit their values, causing the transcript to be empty
-    });
-});
-
-// Field monitoring for debugging
-const transcriptTextEl = document.getElementById('transcript_text');
-
-if (transcriptTextEl) {
-    // Debug logging for field state
-    transcriptTextEl.addEventListener('input', function(e) {
-        console.log('[ClearMeet] 📝 Transcript field edited - length:', this.value.length);
-    });
-}
-
-// Form validation and submission
-let formSubmitting = false;
 const inputForm = document.getElementById('inputForm');
+const audioField = document.getElementById('audio_file');
+const overlay = document.getElementById('loadingOverlay');
+const loadingTitle = document.getElementById('loadingTitle');
+const loadingDetail = document.getElementById('loadingDetail');
 
 if (inputForm) {
-    inputForm.addEventListener('submit', function(e) {
-    console.log('[ClearMeet] ========== FORM SUBMISSION STARTED ==========');
-    console.log('[ClearMeet] formSubmitting flag:', formSubmitting);
-    
-    if (formSubmitting) {
-        console.log('[ClearMeet] ⚠️ Form already submitting, preventing duplicate');
-        e.preventDefault();
-        return false;
-    }
-    
-    console.log('[ClearMeet] Event:', e);
-    console.log('[ClearMeet] Form action:', this.action);
-    console.log('[ClearMeet] Form method:', this.method);
-    
-    // Get field values (no longer need to re-enable since we're not disabling them)
-    const transcriptField = document.getElementById('transcript_text');
-    const audioField = document.getElementById('audio_file');
-    
-    console.log('[ClearMeet] 🔍 Field states:');
-    console.log('[ClearMeet]   transcript_text.value length:', transcriptField.value.length);
-    console.log('[ClearMeet]   transcript_text.value preview:', transcriptField.value.substring(0, 100));
-    console.log('[ClearMeet]   audio_file.value:', audioField.value);
-    
-    const textInput = transcriptField.value.trim();
-    const audioInput = audioField.value;
-    const additionalContext = document.getElementById('additional_context')?.value || '';
-    
-    console.log('[ClearMeet] Text input length:', textInput.length);
-    console.log('[ClearMeet] Text input preview:', textInput.substring(0, 100));
-    console.log('[ClearMeet] Audio input:', audioInput);
-    console.log('[ClearMeet] Additional context:', additionalContext);
-    console.log('[ClearMeet] Active tab:', document.querySelector('.tab-btn.active')?.textContent.trim());
-    
-    if (!textInput && !audioInput) {
-        console.log('[ClearMeet] ❌ VALIDATION FAILED: No input provided');
-        e.preventDefault();
-        alert('Please provide either a transcript or upload an audio file');
-        return false;
-    }
-    
-    // Show loading overlay
-    console.log('[ClearMeet] 📊 Showing loading overlay...');
-    const loadingTitle = document.getElementById('loadingTitle');
-    const loadingDetail = document.getElementById('loadingDetail');
-    const loadingProgress = document.getElementById('loadingProgress');
-    
-    if (audioInput) {
-        loadingTitle.textContent = 'Processing Audio...';
-        loadingDetail.innerHTML = '<div id="progressInfo">Starting...</div>';
-        
-        // Start SSE progress tracking
-        console.log('[ClearMeet] 🔄 Opening SSE connection to /progress');
-        const progressStream = new EventSource('/progress');
-        let progressStarted = false;
-        
-        progressStream.onopen = function() {
-            console.log('[ClearMeet] ✓ SSE connection opened');
-        };
-        
-        progressStream.onmessage = function(event) {
-            try {
-                const data = JSON.parse(event.data);
-                console.log('[ClearMeet] 📨 SSE message received:', data);
-                
-                if (data.completed) {
-                    console.log('[ClearMeet] ✓ Audio processing complete');
+    inputForm.addEventListener('submit', function() {
+        const audioSelected = audioField && audioField.files && audioField.files.length > 0;
+        overlay.style.display = 'flex';
+
+        if (audioSelected) {
+            loadingTitle.textContent = 'Processing Audio...';
+            loadingDetail.textContent = 'Starting transcription...';
+
+            const progressStream = new EventSource('/progress');
+            progressStream.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.completed) {
+                        progressStream.close();
+                        return;
+                    }
+                    const chunk = data.chunk || 0;
+                    const total = data.total_chunks || 0;
+                    const percent = data.percent || 0;
+                    const eta = data.estimated_seconds || 0;
+                    const etaText = eta > 0 ? ` (~${eta}s remaining)` : '';
+                    loadingDetail.textContent = `Chunk ${chunk}/${total} (${percent}%)${etaText}`;
+                } catch (err) {
                     progressStream.close();
-                    return;
                 }
-                
-                progressStarted = true;
-                const percent = data.percent || 0;
-                const chunk = data.chunk || 0;
-                const total = data.total_chunks || 0;
-                const eta = data.estimated_seconds || 0;
-                
-                const etaText = eta > 0 ? ` (~${eta}s remaining)` : '';
-                const progressText = `<strong>Chunk ${chunk}/${total}</strong> (${percent}%)${etaText}`;
-                
-                const progressInfo = document.getElementById('progressInfo');
-                if (progressInfo) {
-                    progressInfo.innerHTML = progressText;
-                }
-                
-                console.log(`[ClearMeet] Updated progress: ${progressText}`);
-            } catch (err) {
-                console.error('[ClearMeet] Error parsing progress message:', err, event.data);
-            }
-        };
-        
-        progressStream.onerror = function() {
-            console.error('[ClearMeet] ❌ SSE connection error');
-            progressStream.close();
-        };
-    } else {
-        loadingTitle.textContent = 'Generating MOM...';
-        loadingDetail.textContent = 'This may take a moment.';
-    }
-    document.getElementById('loadingOverlay').style.display = 'flex';
-    
-    formSubmitting = true;
-    console.log('[ClearMeet] ✓ Validation passed, submitting form...');
-    console.log('[ClearMeet] Form data being submitted:');
-    const formData = new FormData(this);
-    for (let [key, value] of formData.entries()) {
-        if (typeof value === 'string') {
-            console.log(`[ClearMeet]   ${key}: ${value.substring(0, 100)}${value.length > 100 ? '...' : ''}`);
-        } else {
-            console.log(`[ClearMeet]   ${key}: [File: ${value.name}]`);
+            };
+            progressStream.onerror = function() {
+                progressStream.close();
+            };
         }
-    }
-    console.log('[ClearMeet] ==========================================');
-    
-    // Form will now submit naturally
-    return true;
     });
 }
 </script>

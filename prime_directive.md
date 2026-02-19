@@ -1,6 +1,6 @@
 # Prime Directive: Development Guidelines
 
-**Last Updated:** February 16, 2026  
+**Last Updated:** February 19, 2026  
 **Purpose:** Ensure high-quality, maintainable code by learning from past experiences and establishing best practices for all team members, AI agents, and contributors.
 
 ---
@@ -402,6 +402,23 @@ Consider Selenium/Playwright if:
 - Test critical user flows end-to-end
 - Document UI testing in commit message ("Tested: form submission, navigation, refresh")
 - Have second person spot-check if possible
+
+### 6. **User-Facing Output Quality - No Truncated Business Content**
+**CRITICAL:** Do not ship user-facing documents with truncated sentences (e.g., "...") unless explicitly labeled as a preview.
+
+**Why this matters:**
+- Business minutes are circulated as authoritative records
+- Truncated content undermines clarity, professionalism, and legal/audit value
+- "Looks fine" in UI can still be wrong in exported output
+
+**✅ Always:**
+- Ensure exported/printable MOM text includes full sentences
+- If compact tables are used, wrap lines instead of truncating
+- Only use ellipses in explicit previews, never in final export content
+
+**Manual Output Check (Required when rendering changes):**
+- Verify the final MOM text and PDF contain complete action items
+- Confirm no ellipses appear in the final output (unless explicitly intended)
 
 **Cost of Skipping Manual UI Testing:**
 - 2 minutes saved = hours debugging production issues

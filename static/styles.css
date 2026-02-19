@@ -1,0 +1,340 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
+
+:root {
+    --ink: #0f172a;
+    --ink-muted: #475569;
+    --border: #d8e1eb;
+    --panel: #ffffff;
+    --panel-alt: #f8fafc;
+    --accent: #1d4ed8;
+    --accent-strong: #1e3a8a;
+    --success: #16a34a;
+    --warning: #d97706;
+    --error: #dc2626;
+    --shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+    --radius: 12px;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+    color: var(--ink);
+    background: linear-gradient(180deg, #eef2f7 0%, #f6f8fb 100%);
+    min-height: 100vh;
+}
+
+.container {
+    width: min(1200px, 92vw);
+    margin: 0 auto;
+}
+
+.header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 1.5rem 0;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+}
+
+.logo {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--accent-strong);
+}
+
+.tagline {
+    color: var(--ink-muted);
+    margin-top: 0.25rem;
+}
+
+.breadcrumbs {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    font-size: 0.9rem;
+    color: var(--ink-muted);
+}
+
+.crumb {
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    background: var(--panel-alt);
+    border: 1px solid var(--border);
+}
+
+.crumb-sep {
+    color: var(--ink-muted);
+}
+
+.main-content {
+    padding: 2rem 0 3rem;
+}
+
+.page-header {
+    margin-bottom: 1.5rem;
+}
+
+.page-header h2 {
+    font-size: 1.8rem;
+    font-weight: 600;
+}
+
+.page-header p {
+    color: var(--ink-muted);
+    margin-top: 0.4rem;
+}
+
+.card {
+    background: var(--panel);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 1.5rem;
+    box-shadow: var(--shadow);
+    margin-bottom: 1.5rem;
+}
+
+.card-header {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.card-header h3 {
+    font-size: 1.1rem;
+}
+
+.form-group {
+    margin-bottom: 1.25rem;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 0.4rem;
+}
+
+.form-control {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.7rem 0.8rem;
+    font-size: 0.95rem;
+    font-family: inherit;
+    background: var(--panel-alt);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.15);
+    background: #ffffff;
+}
+
+.form-control.monospace {
+    font-family: "IBM Plex Mono", "Courier New", monospace;
+    font-size: 0.9rem;
+}
+
+.form-text {
+    color: var(--ink-muted);
+    font-size: 0.85rem;
+    margin-top: 0.3rem;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+}
+
+.btn {
+    border-radius: 999px;
+    padding: 0.6rem 1.5rem;
+    font-size: 0.95rem;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-primary {
+    background: var(--accent);
+    color: #ffffff;
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 16px rgba(29, 78, 216, 0.25);
+}
+
+.btn-secondary {
+    background: var(--panel-alt);
+    color: var(--ink);
+    border: 1px solid var(--border);
+}
+
+.btn-remove {
+    background: var(--error);
+    color: #ffffff;
+    border: none;
+    border-radius: 999px;
+    padding: 0.4rem 0.9rem;
+    align-self: center;
+}
+
+.edit-layout {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.5rem;
+}
+
+.array-item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.75rem;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.action-item {
+    display: grid;
+    grid-template-columns: 2fr 1.2fr 1fr auto;
+    gap: 0.75rem;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.checklist {
+    display: grid;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.checklist-item {
+    background: var(--panel-alt);
+    padding: 0.8rem 1rem;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+}
+
+.required-badge {
+    background: var(--error);
+    color: #ffffff;
+    font-size: 0.75rem;
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    margin-left: 0.5rem;
+}
+
+.mom-preview {
+    background: var(--panel-alt);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    padding: 1rem;
+    max-height: 480px;
+    overflow: auto;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.9rem;
+    white-space: pre-wrap;
+}
+
+.flash-messages {
+    margin-bottom: 1.5rem;
+}
+
+.alert {
+    padding: 0.75rem 1rem;
+    border-radius: 10px;
+    margin-bottom: 0.75rem;
+    border: 1px solid var(--border);
+    background: #ffffff;
+}
+
+.alert-success {
+    border-color: rgba(22, 163, 74, 0.4);
+    background: rgba(22, 163, 74, 0.08);
+}
+
+.alert-error {
+    border-color: rgba(220, 38, 38, 0.4);
+    background: rgba(220, 38, 38, 0.08);
+}
+
+.alert-warning {
+    border-color: rgba(217, 119, 6, 0.4);
+    background: rgba(217, 119, 6, 0.08);
+}
+
+.footer {
+    padding: 2rem 0;
+    text-align: center;
+    color: var(--ink-muted);
+}
+
+.loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+}
+
+.loading-card {
+    background: #ffffff;
+    padding: 2rem 2.5rem;
+    border-radius: 16px;
+    text-align: center;
+    min-width: 280px;
+    box-shadow: 0 20px 40px rgba(15, 23, 42, 0.2);
+}
+
+.loading-card h3 {
+    margin-top: 1rem;
+    font-size: 1.2rem;
+}
+
+.loading-warning {
+    margin-top: 0.5rem;
+    color: var(--ink-muted);
+    font-size: 0.9rem;
+}
+
+.spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid rgba(29, 78, 216, 0.2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    margin: 0 auto;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (max-width: 980px) {
+    .edit-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .action-item {
+        grid-template-columns: 1fr;
+    }
+
+    .form-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}

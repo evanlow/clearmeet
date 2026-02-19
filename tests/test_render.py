@@ -52,6 +52,18 @@ def test_format_action_items_handles_missing_fields_nicely():
     assert "Unassigned" in output
 
 
+def test_format_action_items_wraps_long_action_text():
+    mom = _sample_mom()
+    mom.action_items[0].action = "Scrub the contact list to reduce duplicates before the campaign launch"
+
+    lines = format_action_items(mom.action_items)
+    output = "\n".join(lines)
+
+    assert "..." not in output
+    assert "Scrub the contact list to reduce" in output
+    assert "duplicates before the campaign" in output
+
+
 def test_apply_user_edits_keeps_structured_unchanged_for_mvp():
     structured = _sample_mom()
     edited_text = "User overrides text entirely in editor."

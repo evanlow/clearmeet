@@ -10,6 +10,7 @@ import json
 from datetime import datetime
 from typing import Optional
 import threading
+import uuid
 
 from config import get_config, Config
 from core.parser import TranscriptParser
@@ -58,13 +59,58 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             return ''
         cleaned = value.replace('\x00', '').strip()
         return cleaned[:max_len]
+
+    def _persist_transcript(text: str) -> tuple[str, Optional[str]]:
+        """Persist transcript text safely without overflowing session cookies."""
+        preview_limit = 2000
+        if len(text) <= preview_limit:
+            return text, None
+
+        transcript_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'transcripts')
+        os.makedirs(transcript_dir, exist_ok=True)
+        transcript_id = f"transcript_{uuid.uuid4().hex}.txt"
+        transcript_path = os.path.join(transcript_dir, transcript_id)
+
+        with open(transcript_path, 'w', encoding='utf-8') as handle:
+            handle.write(text)
+
+        preview = text[:preview_limit].rstrip() + "..."
+        return preview, transcript_path
+
+    def _persist_mom_text(text: str) -> tuple[str, Optional[str]]:
+        """Persist MOM text if large; return text (or preview) and file path."""
+        preview_limit = 5000
+        if len(text) <= preview_limit:
+            return text, None
+
+        mom_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'mom_text')
+        os.makedirs(mom_dir, exist_ok=True)
+        mom_id = f"mom_{uuid.uuid4().hex}.txt"
+        mom_path = os.path.join(mom_dir, mom_id)
+
+        with open(mom_path, 'w', encoding='utf-8') as handle:
+            handle.write(text)
+
+        preview = text[:preview_limit].rstrip() + "..."
+        return preview, mom_path
+
+    def _load_text_from_path(path: Optional[str]) -> Optional[str]:
+        if not path:
+            return None
+        if not os.path.exists(path):
+            return None
+        with open(path, 'r', encoding='utf-8') as handle:
+            return handle.read()
     
     # Routes
     @app.route('/')
     def index():
         """Landing page with input options."""
         # Clear any existing session data for fresh start
+        pending_flashes = session.get('_flashes')
         session.clear()
+        if pending_flashes:
+            session['_flashes'] = pending_flashes
         return render_template('index.html')
     
     @app.route('/process', methods=['GET', 'POST'])
@@ -248,10 +294,15 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             
             # Store in session
             print("\n[DEBUG] --- SESSION STORAGE STAGE ---")
+            transcript_preview, transcript_path = _persist_transcript(transcript)
             session['mom_data'] = mom_data
             session['mom_json'] = mom_data
-            session['mom_text'] = mom_text
-            session['transcript'] = transcript
+            mom_text_preview, mom_text_path = _persist_mom_text(mom_text)
+            session['mom_text'] = mom_text_preview
+            session['mom_text_path'] = mom_text_path
+            session['transcript'] = transcript_preview
+            session['transcript_path'] = transcript_path
+            session['transcript_length'] = len(transcript)
             session['additional_context'] = instructions
             session['validated'] = False
             session['text_override'] = False
@@ -350,6 +401,10 @@ def create_app(config_name: Optional[str] = None) -> Flask:
         
         mom_data = session.get('mom_data', {})
         mom_text = session.get('mom_text', '')
+        if session.get('mom_text_path') and (not mom_text or mom_text.endswith('...')):
+            loaded_text = _load_text_from_path(session.get('mom_text_path'))
+            if loaded_text:
+                mom_text = loaded_text
         
         return render_template('edit.html', mom_data=mom_data, mom_text=mom_text)
     
@@ -439,10 +494,15 @@ def create_app(config_name: Optional[str] = None) -> Flask:
 
             if edited_text:
                 typed_mom = apply_user_edits(typed_mom, edited_text)
-                session['mom_text'] = edited_text
+                mom_text_preview, mom_text_path = _persist_mom_text(edited_text)
+                session['mom_text'] = mom_text_preview
+                session['mom_text_path'] = mom_text_path
                 session['text_override'] = True
             else:
-                session['mom_text'] = mom_to_text(typed_mom)
+                rendered_text = mom_to_text(typed_mom)
+                mom_text_preview, mom_text_path = _persist_mom_text(rendered_text)
+                session['mom_text'] = mom_text_preview
+                session['mom_text_path'] = mom_text_path
                 session['text_override'] = False
 
             # Store updated structured data
@@ -478,6 +538,10 @@ def create_app(config_name: Optional[str] = None) -> Flask:
         
         # Validate text length
         mom_text = session.get('mom_text', '')
+        if session.get('mom_text_path') and (not mom_text or mom_text.endswith('...')):
+            loaded_text = _load_text_from_path(session.get('mom_text_path'))
+            if loaded_text:
+                mom_text = loaded_text
         text_valid, text_message = MOMValidator.validate_text_length(mom_text)
         if not text_valid:
             content_issues.append(text_message)

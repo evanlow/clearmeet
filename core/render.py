@@ -2,6 +2,7 @@
 MOM rendering and edit-application helpers.
 """
 from datetime import datetime, timezone
+import textwrap
 
 from core.schema import MeetingMOM, ActionItem
 
@@ -11,6 +12,12 @@ def _format_action_cell(value: str, width: int) -> str:
     if len(text) > width:
         text = text[: width - 3] + "..."
     return text.ljust(width)
+
+
+def _wrap_action_text(value: str, width: int) -> list[str]:
+    text = (value or "").strip()
+    wrapped = textwrap.wrap(text, width=width) if text else [""]
+    return wrapped or [""]
 
 
 def format_action_items(action_items: list[ActionItem]) -> list[str]:
@@ -54,13 +61,25 @@ def format_action_items(action_items: list[ActionItem]) -> list[str]:
         deadline = item.deadline if item.deadline else "No deadline specified"
         owner = item.owner if item.owner else "Unassigned"
         status = item.status if item.status else "Open"
-        lines.append(
-            f"  {index:<3}| "
-            f"{_format_action_cell(item.action, action_width)} | "
-            f"{_format_action_cell(owner, owner_width)} | "
-            f"{_format_action_cell(deadline, deadline_width)} | "
-            f"{_format_action_cell(status, status_width)}"
-        )
+        action_lines = _wrap_action_text(item.action, action_width)
+
+        for line_index, action_line in enumerate(action_lines):
+            if line_index == 0:
+                lines.append(
+                    f"  {index:<3}| "
+                    f"{_format_action_cell(action_line, action_width)} | "
+                    f"{_format_action_cell(owner, owner_width)} | "
+                    f"{_format_action_cell(deadline, deadline_width)} | "
+                    f"{_format_action_cell(status, status_width)}"
+                )
+            else:
+                lines.append(
+                    f"  {'':<3}| "
+                    f"{_format_action_cell(action_line, action_width)} | "
+                    f"{_format_action_cell('', owner_width)} | "
+                    f"{_format_action_cell('', deadline_width)} | "
+                    f"{_format_action_cell('', status_width)}"
+                )
 
     return lines
 

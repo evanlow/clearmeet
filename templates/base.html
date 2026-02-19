@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}ClearMeet - MOM Generator{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -12,6 +12,15 @@
         <div class="container">
             <h1 class="logo">ClearMeet</h1>
             <p class="tagline">Minutes of Meeting Generator</p>
+            <nav class="breadcrumbs" aria-label="Workflow">
+                <span class="crumb">Input</span>
+                <span class="crumb-sep">&gt;</span>
+                <span class="crumb">Edit</span>
+                <span class="crumb-sep">&gt;</span>
+                <span class="crumb">Validate</span>
+                <span class="crumb-sep">&gt;</span>
+                <span class="crumb">Export</span>
+            </nav>
         </div>
     </header>
 
