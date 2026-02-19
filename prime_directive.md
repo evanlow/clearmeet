@@ -2487,47 +2487,135 @@ $env:PYTHONIOENCODING = 'utf-8'
 
 ---
 
-### 🎯 Recommendation for ClearMeet
+### 🎯 STANDARD FOR CLEARMEET: Git Bash is Required
 
-**Best practice hierarchy:**
-1. **First choice:** Use ASCII-only commit messages + PowerShell (no changes needed)
-2. **Second choice:** Use Git Bash for git operations (even better)
-3. **Third choice:** Configure PowerShell for UTF-8 (if you insist on PowerShell + Unicode)
+**Effective immediately (February 19, 2026):**
 
-**For ClearMeet, starting TODAY:**
-- ✅ Use ASCII replacements in all commit messages (implementation above)
-- ✅ No special characters or emoji in commits
-- ✅ Commit format: `Backend Tests: X/X passed, 0 warnings [PASS]`
-- 💡 **Optional:** Use Git Bash for git operations (better experience overall)
+Git Bash is the **REQUIRED** git tool for all ClearMeet development. This is not optional; it is a team standard.
+
+**Why Git Bash is the standard for ClearMeet:**
+- ✅ **Zero cosmetic errors** - No confusing error messages during commits
+- ✅ **Professional appearance** - Clean git history without artifacts
+- ✅ **Universal compatibility** - Works across all operating systems and environments
+- ✅ **Culture of quality** - Demonstrates commitment to "no eyesores" philosophy
+- ✅ **Team consistency** - Everyone uses the same tool, same experience
+- ✅ **Future-proof** - Avoids PowerShell issues entirely, no workarounds needed
+- ✅ **Built into Git** - No additional setup beyond standard Git for Windows
+
+**This standard means:**
+- When performing git operations (add, commit, push, pull, etc.), use Git Bash
+- PowerShell is only for Python/Flask operations
+- Development workflow: Python/Flask in PowerShell, Git operations in Git Bash
+- This is a team commitment to quality, not an arbitrary restriction
 
 ---
 
-### Why This Matters
+### 📋 Setup Guide: Switching to Git Bash
 
-**Commitment to this standard means:**
-- No confusing error messages during commits
-- Professional commit messages
-- Works in all environments and tools
-- Reduced troubleshooting time
-- Consistent team practices
-- Git history looks clean everywhere
+**For ClearMeet contributors:**
+
+1. **Verify Git for Windows is installed**
+   ```powershell
+   # In PowerShell, check git version
+   git --version
+   # Should show: git version 2.x.x.windows.1
+   ```
+
+2. **Locate Git Bash**
+   - **Option A:** Right-click in Windows Explorer → "Git Bash Here"
+   - **Option B:** Start Menu → Search "Git Bash" → Launch
+   - **Option C:** From any terminal: `"C:\Program Files\Git\bin\bash.exe"`
+
+3. **Set up Git Bash as your default for repo operations**
+   - Create desktop shortcut to Git Bash pointing to the project folder
+   - Or: Open Git Bash → `cd` to project folder → keep it open during development
+
+4. **Daily workflow (Updated):**
+
+   ```powershell
+   # PowerShell - Python/Flask operations
+   .\Scripts\Activate.ps1
+   python app.py
+   python -m pytest
+   ```
+
+   ```bash
+   # Git Bash - Git operations (NOT PowerShell)
+   cd /c/Users/evanl/Documents/development\ workspace/clearmeet
+   git add README.md
+   git commit -m "docs: update audio upload security [PASS]"
+   git push origin main
+   ```
+
+5. **Avoid PowerShell for git operations**
+   - ❌ PowerShell: `git commit -m "message" 2>&1` (may show cosmetic errors)
+   - ✅ Git Bash: Same command works perfectly
+
+---
+
+### 🎨 Why This Reflects Our Quality Culture
+
+**Values demonstrated by this standard:**
+- **Highest Quality:** No compromises on appearance or professionalism
+- **User Experience:** Clean output, no confusing error messages ("eyesores")
+- **Team Consistency:** Everyone operates the same way
+- **Preventive:** Avoid problems instead of working around them
+- **Documentation:** This is written down, not assumed knowledge
+
+**A single cosmetic error affects credibility:**
+- User sees error messages even though everything works
+- Creates doubt: "Is the commit really pushed?"
+- Undermines professional appearance
+- Prevents us from inculcating highest quality culture
+
+**This standard says:** "We care enough to eliminate cosmetic issues. Quality matters in every detail."
+
+---
+
+### ✅ Alternative: ASCII-Only Commit Messages (For teams that insist on PowerShell)
+
+If your team strongly prefers PowerShell and refuses Git Bash, **minimum requirement** is ASCII-only commit messages:
+
+```markdown
+Update to commit format (v7):
+
+Commit Message Format:
+  <type>: <description>
+  
+  <body with details>
+  
+  Backend Tests: X/X passed, 0 warnings [PASS]
+  Manual Testing: [PASS] (for UI changes only)
+
+Approved ASCII replacements ONLY:
+  [PASS]  == previously ✓
+  [FAIL]  == previously ✗
+  [OK]    == previously ✓
+  [DONE]  == previously ✓
+```
+
+**But note:** This approach still has the PowerShell redirection issue appear cosmetically.  
+**Git Bash approach is superior** - Choose that instead.
 
 ---
 
 ### Updating Prime Directive
 
-**All future commits to ClearMeet project must:**
-- ✅ Use only ASCII characters (no Unicode/emoji)
+**ClearMeet team git requirements (non-negotiable):**
+- ✅ **PRIMARY:** Use Git Bash for ALL git operations
+- ✅ Use only ASCII characters in commit messages (no Unicode/emoji)
 - ✅ Use approved ASCII replacements: `[PASS]`, `[FAIL]`, `[OK]`, `[DONE]`
 - ✅ Document what was tested in commit message
 - ✅ Include test count: "Backend Tests: X/X passed, 0 warnings [PASS]"
 - ✅ For UI changes, include: "Manual Testing: [PASS]" with checklist items
+- ✅ Never commit code with failing tests or warnings
 
 **Document last updated:** 2026-02-19
 
 ---
 
 **Revision History:**
+- **2026-02-19 (v8): Git Bash as Required Standard** - Upgraded Git Bash from "optional recommendation" to "REQUIRED team standard" (v7 was incomplete approach); Added "Why Git Bash is the standard for ClearMeet" section emphasizing quality culture alignment; Created detailed "Setup Guide: Switching to Git Bash" for team onboarding; Added "Why This Reflects Our Quality Culture" section explaining how this standard demonstrates commitment to highest quality; Established daily workflow division: PowerShell for Python/Flask operations, Git Bash exclusively for git operations; Made clear that cosmetic errors undermine professionalism and damage credibility; Updated all requirements to mandate Git Bash; Secondary fallback (ASCII-only messages) now clearly marked as "minimum if team refuses Git Bash" (not recommended); Rationale: Single cosmetic error affects entire credibility - preventing the issue is better than working around it; Philosophy: "We care enough to eliminate eyesores entirely"
 - **2026-02-19 (v7): Git Best Practices & ASCII Commit Messages** - Added comprehensive Git best practices section addressing PowerShell Unicode encoding issues; Established ASCII-only commit message standard to prevent encoding errors; Documented three solutions (ASCII messages, Git Bash, UTF-8 config); Updated commit message format to use [PASS]/[FAIL] instead of Unicode; Added tool comparison table and recommendations; Commits with special characters will no longer cause error messages
 - **2026-02-16 (v6): Audio Chunking for Large Files** - Implemented time-based audio chunking to handle files >20MB (up to 200MB); Used lazy import pattern for pydub to avoid Python 3.13 audioop compatibility issues when not chunking; Added Phase 1 progress UI (loading overlay with spinner) to inform users during long transcription operations; Updated validation to accept larger files (16MB → 200MB); Maintained backward compatibility for small files (<20MB) using single-file transcription; Design decision: Simple time-based chunking (Option B) over silence detection (Option A) for faster implementation and reliability; Testing approach: Verified existing tests still pass (17/19 audio tests), chunking tested with large file; Future enhancement: Real-time progress updates via SSE/WebSocket (Phase 2); Key lesson: Lazy imports can resolve dependency conflicts while maintaining functionality
 - **2026-02-16 (v5): ClearMeet Frontend Testing Gap** - Added Principle 5 "Frontend/UI Testing - The Backend Test Blind Spot" after 138/138 tests passed but form submission failed due to JavaScript bug; Added comprehensive lesson learned documenting incident where tab-switching code cleared form values; Added Quick Reference "Before Every Commit" checklist at document top; Added Testing Strategy Decision Matrix with clear guidance on when to use backend tests vs manual testing vs E2E tests; Enhanced Principle 1 Protocol to explicitly require manual testing for UI changes (steps 5-7); Added Summary section with key takeaways, common mistakes, cost analysis, and critical workflows; Updated last modified date to 2026-02-16; Total additions: ~150 lines of critical frontend testing guidance
