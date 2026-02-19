@@ -30,10 +30,14 @@ Commit Message Format:
   
   <body with details>
   
-  Backend Tests: X/X passed, 0 warnings ✓
-  Manual Testing: ✓ (for UI changes only)
+  Backend Tests: X/X passed, 0 warnings [PASS]
+  Manual Testing: [PASS] (for UI changes only)
     - [What you tested]
     - [Results]
+
+**Important:** Use ASCII characters only in commit messages (no Unicode/emoji).
+  ✅ [PASS], [OK], [DONE], [FAIL]
+  ❌ ✓, ✗, �	 (causes PowerShell encoding errors)
 ```
 
 ---
@@ -2351,7 +2355,180 @@ Tests are tools, not guarantees. The best test is actually using your applicatio
 
 ---
 
+## 🔧 Git Best Practices - Tool Selection & Encoding
+
+### ⚠️ PowerShell Unicode Encoding Issues
+
+**The Problem:**
+PowerShell has known issues with Unicode character handling when used with shell redirection (`2>&1`).
+Commit messages with special characters (✓, ✗, →, •, etc.) cause:
+```
+git : To https://github.com/user/repo.git
+At line:XX char:YY
+    + CategoryInfo          : NotSpecified (To https://github.com/...):String) [], RemoteException
+    + FullyQualifiedNameId : NativeCommandError
+```
+
+**The Reality:**
+- The error is **cosmetic only** - the git command still succeeds
+- Commits are pushed successfully despite the error message
+- But the error message creates confusion and looks unprofessional
+
+---
+
+### ✅ Solution 1: Use ASCII-Only Commit Messages (Recommended for all projects)
+
+**Why this is the best approach:**
+- Works everywhere (PowerShell, Git Bash, macOS, Linux)
+- Professional appearance
+- No encoding issues ever
+- Commits are readable in all tools
+
+**Update to commit format (v7):**
+
+```markdown
+Pre-Commit Checklist - Updated Format:
+
+Commit Message Format:
+  <type>: <description>
+  
+  <body with details>
+  
+  Backend Tests: X/X passed, 0 warnings [PASS]
+  Manual Testing: [PASS] (for UI changes only)
+    - [What you tested]
+    - [Results]
+
+Approved ASCII replacements:
+  [PASS]  == previously ✓
+  [FAIL]  == previously ✗
+  [OK]    == previously ✓
+  [DONE]  == previously ✓
+  [TODO]  == previously ?
+  [WAIT]  == previously ⏳
+  ->      == previously →
+  -       == previously •
+```
+
+**Example commits (updated format):**
+```bash
+# ✅ Good - ASCII only
+git commit -m "feat: implement PDF export module
+
+- Created core/pdf_export.py with export_mom_pdf() function
+- Uses reportlab for monospaced text rendering
+- Returns raw PDF bytes for Flask send_file() compatibility
+
+Backend Tests: 151/151 passed, 0 warnings [PASS]"
+
+
+# ❌ Avoid - Unicode characters
+git commit -m "feat: implement PDF export module ✓"
+```
+
+---
+
+### ✅ Solution 2: Use Git Bash (Recommended for development)
+
+**Why Git Bash is better for git operations:**
+- Native Unicode support (no encoding issues)
+- Standard shell syntax works everywhere
+- Part of Git for Windows installation
+- No configuration needed
+- More reliable than PowerShell for git
+
+**How to use Git Bash:**
+
+1. **Install Git for Windows** (if not already installed)
+   - Download: https://git-scm.com/download/win
+   - Installation includes Git Bash
+
+2. **Open Git Bash** instead of PowerShell for git operations
+   - Right-click in Explorer: "Git Bash Here"
+   - Or launch from Start Menu: "Git Bash"
+
+3. **Use standard bash commands:**
+   ```bash
+   cd "/c/Users/evanl/Documents/development workspace/clearmeet"
+   git add -A
+   git commit -m "feat: add PDF export [PASS]"
+   git push origin main
+   ```
+
+4. **No Unicode issues** - Git Bash handles all characters correctly
+
+**Comparison:**
+
+| Task | PowerShell | Git Bash |
+|------|-----------|----------|
+| ASCII commits | ✅ Works | ✅ Works |
+| Unicode commits | ❌ Errors shown | ✅ Works perfectly |
+| Standard shell syntax | ⚠️ Different | ✅ Standard |
+| Line continuation | Semicolon (;) | Backslash (\) |
+| Feel | Windows-specific | Universal |
+
+---
+
+### ✅ Solution 3: Configure PowerShell for UTF-8 (Advanced)
+
+If you must use PowerShell, add UTF-8 support to your profile:
+
+```powershell
+# Edit your PowerShell profile
+# Usually at: C:\Users\USERNAME\Documents\PowerShell\profile.ps1
+
+# Add these lines
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::UTF8
+$PSDefaultParameterValues['Out-File:Encoding'] = 'utf8'
+$env:PYTHONIOENCODING = 'utf-8'
+```
+
+**Limitation:** Even with this, PowerShell's shell redirection (`2>&1`) can still cause issues. Better to avoid relying on this.
+
+---
+
+### 🎯 Recommendation for ClearMeet
+
+**Best practice hierarchy:**
+1. **First choice:** Use ASCII-only commit messages + PowerShell (no changes needed)
+2. **Second choice:** Use Git Bash for git operations (even better)
+3. **Third choice:** Configure PowerShell for UTF-8 (if you insist on PowerShell + Unicode)
+
+**For ClearMeet, starting TODAY:**
+- ✅ Use ASCII replacements in all commit messages (implementation above)
+- ✅ No special characters or emoji in commits
+- ✅ Commit format: `Backend Tests: X/X passed, 0 warnings [PASS]`
+- 💡 **Optional:** Use Git Bash for git operations (better experience overall)
+
+---
+
+### Why This Matters
+
+**Commitment to this standard means:**
+- No confusing error messages during commits
+- Professional commit messages
+- Works in all environments and tools
+- Reduced troubleshooting time
+- Consistent team practices
+- Git history looks clean everywhere
+
+---
+
+### Updating Prime Directive
+
+**All future commits to ClearMeet project must:**
+- ✅ Use only ASCII characters (no Unicode/emoji)
+- ✅ Use approved ASCII replacements: `[PASS]`, `[FAIL]`, `[OK]`, `[DONE]`
+- ✅ Document what was tested in commit message
+- ✅ Include test count: "Backend Tests: X/X passed, 0 warnings [PASS]"
+- ✅ For UI changes, include: "Manual Testing: [PASS]" with checklist items
+
+**Document last updated:** 2026-02-19
+
+---
+
 **Revision History:**
+- **2026-02-19 (v7): Git Best Practices & ASCII Commit Messages** - Added comprehensive Git best practices section addressing PowerShell Unicode encoding issues; Established ASCII-only commit message standard to prevent encoding errors; Documented three solutions (ASCII messages, Git Bash, UTF-8 config); Updated commit message format to use [PASS]/[FAIL] instead of Unicode; Added tool comparison table and recommendations; Commits with special characters will no longer cause error messages
 - **2026-02-16 (v6): Audio Chunking for Large Files** - Implemented time-based audio chunking to handle files >20MB (up to 200MB); Used lazy import pattern for pydub to avoid Python 3.13 audioop compatibility issues when not chunking; Added Phase 1 progress UI (loading overlay with spinner) to inform users during long transcription operations; Updated validation to accept larger files (16MB → 200MB); Maintained backward compatibility for small files (<20MB) using single-file transcription; Design decision: Simple time-based chunking (Option B) over silence detection (Option A) for faster implementation and reliability; Testing approach: Verified existing tests still pass (17/19 audio tests), chunking tested with large file; Future enhancement: Real-time progress updates via SSE/WebSocket (Phase 2); Key lesson: Lazy imports can resolve dependency conflicts while maintaining functionality
 - **2026-02-16 (v5): ClearMeet Frontend Testing Gap** - Added Principle 5 "Frontend/UI Testing - The Backend Test Blind Spot" after 138/138 tests passed but form submission failed due to JavaScript bug; Added comprehensive lesson learned documenting incident where tab-switching code cleared form values; Added Quick Reference "Before Every Commit" checklist at document top; Added Testing Strategy Decision Matrix with clear guidance on when to use backend tests vs manual testing vs E2E tests; Enhanced Principle 1 Protocol to explicitly require manual testing for UI changes (steps 5-7); Added Summary section with key takeaways, common mistakes, cost analysis, and critical workflows; Updated last modified date to 2026-02-16; Total additions: ~150 lines of critical frontend testing guidance
 - 2025-11-25 (v4): **Sprint 4 Task 1 Lesson** - Added critical "Research APIs Before Integration Tests" lesson from Sprint 4 Task 1 experience (37+ API mismatches), Enhanced Pre-Implementation Checklist with Integration Test Research Protocol (mandatory 6-step process), Updated Development Workflow Phase 1 to 15-30% with integration test research requirements, Documented time savings (44% reduction) from proper API research, Current metrics: 562 tests (30 new integration tests)
