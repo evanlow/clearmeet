@@ -61,9 +61,10 @@ End of Minutes
     def test_exporter_has_required_styles(self, exporter):
         """Test that exporter has all required styles."""
         assert 'title' in exporter.styles
-        assert 'heading' in exporter.styles
+        assert 'section' in exporter.styles  # Updated from 'heading' to 'section'
         assert 'body' in exporter.styles
         assert 'list' in exporter.styles
+        assert 'small' in exporter.styles  # New style added
     
     def test_export_to_pdf_returns_bytesio(self, exporter, sample_mom_text):
         """Test that export returns BytesIO buffer."""
