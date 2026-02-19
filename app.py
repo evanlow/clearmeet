@@ -15,6 +15,8 @@ from config import get_config, Config
 from core.parser import TranscriptParser
 from core.llm import extract_mom_from_transcript, render_mom_text, transcribe_audio
 from core.audio import AudioTranscriber
+from core.render import mom_to_text, apply_user_edits
+from core.schema import validate_mom_dict
 from core.validation import MOMValidator, ValidationItem
 from core.export import PDFExporter
 
@@ -50,6 +52,12 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     
     # Initialize components
     pdf_exporter = PDFExporter()
+
+    def _sanitize_text(value: Optional[str], max_len: int = 20000) -> str:
+        if not value:
+            return ''
+        cleaned = value.replace('\x00', '').strip()
+        return cleaned[:max_len]
     
     # Routes
     @app.route('/')
@@ -60,6 +68,7 @@ def create_app(config_name: Optional[str] = None) -> Flask:
         return render_template('index.html')
     
     @app.route('/process', methods=['GET', 'POST'])
+    @app.route('/generate', methods=['POST'])
     def process_input():
         """
         Process transcript input (text or audio file).
@@ -217,14 +226,19 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             # Generate MOM using LLM
             print("\n[DEBUG] --- AI GENERATION STAGE ---")
             print("[DEBUG] Calling OpenAI to generate MOM...")
-            additional_context = request.form.get('additional_context', '')
-            print(f"[DEBUG] Additional context: '{additional_context[:100] if additional_context else 'None'}'")
-            
-            mom_data = extract_mom_from_transcript(
+            objective = _sanitize_text(request.form.get('objective', ''))
+            instructions = _sanitize_text(request.form.get('instructions', '') or request.form.get('additional_context', ''))
+            print(f"[DEBUG] Objective: '{objective[:100] if objective else 'None'}'")
+            print(f"[DEBUG] Instructions: '{instructions[:100] if instructions else 'None'}'")
+
+            mom_data_raw = extract_mom_from_transcript(
                 transcript,
-                objective=None,
-                instructions=additional_context or None
+                objective=objective or None,
+                instructions=instructions or None
             )
+            validated_mom = validate_mom_dict(mom_data_raw)
+            mom_data = validated_mom.model_dump(exclude_none=True)
+            mom_text = mom_to_text(validated_mom)
             print(f"[DEBUG] ✓ MOM generated successfully")
             print(f"[DEBUG] MOM data keys: {list(mom_data.keys()) if mom_data else None}")
             print(f"[DEBUG] MOM objective: {mom_data.get('objective', 'N/A')[:100] if mom_data else 'N/A'}")
@@ -232,11 +246,15 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             print(f"[DEBUG] MOM decisions count: {len(mom_data.get('decisions', [])) if mom_data else 0}")
             print(f"[DEBUG] MOM action_items count: {len(mom_data.get('action_items', [])) if mom_data else 0}")
             
-            # Store in session (exclude transcript to avoid session size limits)
+            # Store in session
             print("\n[DEBUG] --- SESSION STORAGE STAGE ---")
             session['mom_data'] = mom_data
-            session['mom_text'] = render_mom_text(mom_data)
-            session['additional_context'] = additional_context
+            session['mom_json'] = mom_data
+            session['mom_text'] = mom_text
+            session['transcript'] = transcript
+            session['additional_context'] = instructions
+            session['validated'] = False
+            session['text_override'] = False
             print(f"[DEBUG] ✓ Session data stored")
             print(f"[DEBUG] Session keys: {list(session.keys())}")
             
@@ -336,60 +354,52 @@ def create_app(config_name: Optional[str] = None) -> Flask:
         return render_template('edit.html', mom_data=mom_data, mom_text=mom_text)
     
     @app.route('/update', methods=['POST'])
-    def update_mom():
+    @app.route('/edit', methods=['POST'])
+    def edit_submit():
         """
         Update MOM data from edit form.
         
         Handles both structured edits and full text override.
         """
         try:
-            # Check if full text override is being used
-            if request.form.get('use_text_override') == 'true':
-                # User chose to override with full text
-                mom_text = request.form.get('mom_text_override', '')
-                
-                if not mom_text or len(mom_text.strip()) < 50:
-                    flash('MOM text is too short or empty', 'error')
-                    return redirect(url_for('edit'))
-                
-                session['mom_text'] = mom_text
-                session['text_override'] = True
-                
-            else:
-                # Update structured data
-                mom_data = session.get('mom_data', {})
-                
-                # Update title and date
-                mom_data['title'] = request.form.get('title', '')
-                mom_data['date'] = request.form.get('date', '')
+            # Update structured data
+            mom_data = session.get('mom_json') or session.get('mom_data', {})
 
-                # Update objective
-                mom_data['objective'] = request.form.get('objective', '')
-                
-                # Update attendees
-                attendees_str = request.form.get('attendees', '')
+            # Update title/date/objective when provided
+            if 'title' in request.form:
+                mom_data['title'] = _sanitize_text(request.form.get('title', ''))
+            if 'date' in request.form:
+                mom_data['date'] = _sanitize_text(request.form.get('date', ''))
+            if 'objective' in request.form:
+                mom_data['objective'] = _sanitize_text(request.form.get('objective', ''))
+
+            # Update attendees
+            if 'attendees' in request.form:
+                attendees_str = _sanitize_text(request.form.get('attendees', ''))
                 attendees_list = [a.strip() for a in attendees_str.split(',') if a.strip()]
                 mom_data['attendees'] = attendees_list if attendees_list else None
-                
-                # Update decisions
+
+            # Update decisions
+            if any(key.startswith('decision_') for key in request.form.keys()):
                 decisions = []
                 for key in request.form.keys():
                     if key.startswith('decision_'):
-                        decision = request.form.get(key, '').strip()
+                        decision = _sanitize_text(request.form.get(key, ''))
                         if decision:
                             decisions.append({'text': decision})
                 mom_data['decisions'] = decisions
-                
-                # Update action items
+
+            # Update action items
+            if 'action_count' in request.form:
                 action_items = []
                 action_count = int(request.form.get('action_count', 0))
                 for i in range(action_count):
-                    action = request.form.get(f'action_action_{i}', '').strip()
-                    owner = request.form.get(f'action_owner_{i}', '').strip()
-                    deadline = request.form.get(f'action_deadline_{i}', '').strip() or None
-                    status = request.form.get(f'action_status_{i}', '').strip() or 'Open'
+                    action = _sanitize_text(request.form.get(f'action_action_{i}', ''))
+                    owner = _sanitize_text(request.form.get(f'action_owner_{i}', ''))
+                    deadline = _sanitize_text(request.form.get(f'action_deadline_{i}', '')) or None
+                    status = _sanitize_text(request.form.get(f'action_status_{i}', '')) or 'Open'
 
-                    if action:  # Only add if action is not empty
+                    if action:
                         action_items.append({
                             'action': action,
                             'owner': owner or '',
@@ -398,28 +408,48 @@ def create_app(config_name: Optional[str] = None) -> Flask:
                         })
                 mom_data['action_items'] = action_items
 
-                # Update parking lot
-                parking_lot_str = request.form.get('parking_lot', '')
+            # Update parking lot
+            if 'parking_lot' in request.form:
+                parking_lot_str = _sanitize_text(request.form.get('parking_lot', ''))
                 if parking_lot_str.strip():
                     mom_data['parking_lot'] = [p.strip() for p in parking_lot_str.split(',') if p.strip()]
                 else:
                     mom_data['parking_lot'] = None
 
-                # Update notes
-                notes = request.form.get('notes', '').strip()
+            # Update notes
+            if 'notes' in request.form:
+                notes = _sanitize_text(request.form.get('notes', ''), max_len=50000)
                 mom_data['notes'] = notes if notes else None
 
-                # Update confidentiality flags
-                flags_str = request.form.get('confidentiality_flags', '')
+            # Update confidentiality flags
+            if 'confidentiality_flags' in request.form:
+                flags_str = _sanitize_text(request.form.get('confidentiality_flags', ''))
                 if flags_str.strip():
                     mom_data['confidentiality_flags'] = [f.strip() for f in flags_str.split(',') if f.strip()]
                 else:
                     mom_data['confidentiality_flags'] = None
-                
-                # Store updated data
-                session['mom_data'] = mom_data
-                session['mom_text'] = render_mom_text(mom_data)
+
+            # Validate structured model if possible (MVP keeps structure unchanged on text edits)
+            typed_mom = validate_mom_dict(mom_data)
+
+            # Update text editor override if provided, otherwise render from structure
+            edited_text = _sanitize_text(request.form.get('mom_text_override', ''), max_len=100000)
+            if not edited_text:
+                edited_text = _sanitize_text(request.form.get('mom_text', ''), max_len=100000)
+
+            if edited_text:
+                typed_mom = apply_user_edits(typed_mom, edited_text)
+                session['mom_text'] = edited_text
+                session['text_override'] = True
+            else:
+                session['mom_text'] = mom_to_text(typed_mom)
                 session['text_override'] = False
+
+            # Store updated structured data
+            normalized = typed_mom.model_dump(exclude_none=True)
+            session['mom_data'] = normalized
+            session['mom_json'] = normalized
+            session['validated'] = False
             
             flash('MOM updated successfully!', 'success')
             return redirect(url_for('validate_page'))
@@ -458,7 +488,30 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             content_issues=content_issues,
             mom_text=mom_text
         )
+
+    @app.route('/validate', methods=['POST'])
+    def validate_submit():
+        """Validate checklist submission and mark session validated."""
+        if 'mom_text' not in session:
+            flash('No MOM data found. Please start from the beginning.', 'warning')
+            return redirect(url_for('index'))
+
+        checklist_data = request.form.getlist('checklist')
+        full_checklist = MOMValidator.get_validation_checklist()
+
+        for item in full_checklist:
+            item.checked = item.id in checklist_data
+
+        all_checked, unchecked = MOMValidator.validate_checklist(full_checklist)
+        if not all_checked:
+            flash(f"Please check all required items: {', '.join(unchecked)}", 'error')
+            return redirect(url_for('validate_page'))
+
+        session['validated'] = True
+        flash('Validation checklist completed. Ready to export.', 'success')
+        return redirect(url_for('export_mom'))
     
+    @app.route('/export', methods=['GET'])
     @app.route('/export_mom', methods=['GET', 'POST'])
     def export_mom():
         """
@@ -473,6 +526,10 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             if not mom_text:
                 flash('No MOM data found. Please generate a MOM first.', 'error')
                 return redirect(url_for('index'))
+
+            if request.path == '/export' and not session.get('validated', False):
+                flash('Please complete the validation checklist before export.', 'error')
+                return redirect(url_for('validate_page'))
             
             # Validate checklist only for POST requests (from validation form)
             if request.method == 'POST':
@@ -491,6 +548,7 @@ def create_app(config_name: Optional[str] = None) -> Flask:
                 if not all_checked:
                     flash(f"Please check all required items: {', '.join(unchecked)}", 'error')
                     return redirect(url_for('validate_page'))
+                session['validated'] = True
             
             # Prepare metadata
             metadata = {

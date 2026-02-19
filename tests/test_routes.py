@@ -122,6 +122,30 @@ class TestProcessRoute:
             from flask import session
             assert 'mom_data' in session
             assert session['mom_data'] == mock_mom_data
+            assert session['mom_json'] == mock_mom_data
+            assert session['transcript']
+
+    @patch('app.extract_mom_from_transcript')
+    def test_generate_route_alias_with_valid_transcript(self, mock_generate, client):
+        """Test /generate alias behaves like /process."""
+        mock_mom_data = {
+            'title': 'Test Meeting',
+            'date': '2026-02-16',
+            'objective': 'Test objective that is long enough',
+            'attendees': ['Alice'],
+            'decisions': [{'text': 'Decision 1'}],
+            'action_items': [{'action': 'Task 1', 'owner': 'Alice', 'deadline': '2026-03-01', 'status': 'Open'}]
+        }
+        mock_generate.return_value = mock_mom_data
+
+        transcript = ' '.join(['test word'] * 60)
+        response = client.post('/generate', data={
+            'transcript_text': transcript,
+            'instructions': 'Focus on action items'
+        }, follow_redirects=False)
+
+        assert response.status_code == 302
+        assert '/edit' in response.location
 
 
 class TestEditRoute:
@@ -156,11 +180,8 @@ class TestEditRoute:
 class TestUpdateRoute:
     """Tests for update route."""
     
-    @patch('app.render_mom_text')
-    def test_update_with_structured_data(self, mock_render, client):
+    def test_update_with_structured_data(self, client):
         """Test updating MOM with structured data."""
-        mock_render.return_value = "Rendered MOM text"
-        
         with client.session_transaction() as sess:
             sess['mom_data'] = {
                 'title': 'Old title',
@@ -197,6 +218,43 @@ class TestUpdateRoute:
             ]
             assert session['mom_data']['action_items'][0]['action'] == 'Task 1'
             assert session['text_override'] is False
+            assert session.get('validated') is False
+
+    def test_edit_post_route_alias_with_text(self, client):
+        """Test POST /edit updates structured and full text."""
+        with client.session_transaction() as sess:
+            sess['mom_data'] = {
+                'title': 'Old title',
+                'date': '2026-02-01',
+                'objective': 'Old objective is long enough',
+                'attendees': ['Alice'],
+                'decisions': [{'text': 'Old decision'}],
+                'action_items': [{'action': 'Old action', 'owner': 'Alice', 'deadline': None, 'status': 'Open'}]
+            }
+            sess['mom_text'] = 'Old MOM text that is definitely long enough to pass checks.'
+
+        with client:
+            response = client.post('/edit', data={
+                'title': 'New title',
+                'date': '2026-02-16',
+                'objective': 'New objective long enough',
+                'attendees': 'Alice, Bob',
+                'decision_0': 'Decision 1',
+                'action_count': '1',
+                'action_action_0': 'Task 1',
+                'action_owner_0': 'Alice',
+                'action_deadline_0': '2026-03-01',
+                'action_status_0': 'Open',
+                'mom_text': 'Updated full text override content that is sufficiently long.'
+            }, follow_redirects=False)
+
+            assert response.status_code == 302
+            assert '/validate' in response.location
+
+            from flask import session
+            assert session['mom_data']['title'] == 'New title'
+            assert session['mom_text'].startswith('Updated full text override')
+            assert session['text_override'] is True
 
     def test_update_with_text_override(self, client):
         """Test updating MOM with full text override."""
@@ -272,6 +330,37 @@ class TestValidateRoute:
         assert response.status_code == 200
         assert b'Meeting objective is missing or too short' in response.data
 
+    def test_validate_post_sets_validated_and_redirects_export(self, client):
+        """POST /validate should require checklist and set validated flag."""
+        with client.session_transaction() as sess:
+            sess['mom_data'] = {
+                'title': 'Test Meeting',
+                'date': '2026-02-16',
+                'objective': 'Test objective that is long enough',
+                'attendees': ['Alice'],
+                'decisions': [{'text': 'Decision 1'}],
+                'action_items': [{'action': 'Task 1', 'owner': 'Alice', 'deadline': '2026-03-01', 'status': 'Open'}]
+            }
+            sess['mom_text'] = 'Valid MOM text that is long enough for text length checks.'
+
+        checklist_ids = [
+            'title_present',
+            'date_present',
+            'objective_present',
+            'decisions_documented',
+            'action_items_assigned',
+            'language_professional',
+            'reviewed_by_manager'
+        ]
+
+        with client:
+            response = client.post('/validate', data={'checklist': checklist_ids}, follow_redirects=False)
+            assert response.status_code == 302
+            assert '/export' in response.location
+
+            from flask import session
+            assert session.get('validated') is True
+
 
 class TestExportRoute:
     """Tests for export route."""
@@ -304,6 +393,24 @@ class TestExportRoute:
         response = client.get('/export_mom', follow_redirects=False)
         
         assert response.status_code == 302
+
+    def test_export_route_requires_validated(self, client):
+        """GET /export should enforce validated checklist."""
+        with client.session_transaction() as sess:
+            sess['mom_text'] = 'Test MOM text'
+            sess['mom_data'] = {
+                'title': 'Test Meeting',
+                'date': '2026-02-16',
+                'objective': 'Test objective',
+                'attendees': [],
+                'decisions': [],
+                'action_items': []
+            }
+            sess['validated'] = False
+
+        response = client.get('/export', follow_redirects=False)
+        assert response.status_code == 302
+        assert '/validate' in response.location
 
 
 class TestErrorHandlers:

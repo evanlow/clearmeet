@@ -5,23 +5,22 @@
 {% block content %}
 <div class="page-header">
     <h2>Edit Minutes of Meeting</h2>
-    <p>Review and edit the generated MOM. You can modify structured fields or override with full text.</p>
+    <p>Review and edit the generated MOM. You can modify structured fields and the full MOM text.</p>
 </div>
 
-<form action="{{ url_for('update_mom') }}" method="POST" id="editForm">
-    
+<form action="{{ url_for('edit_submit') }}" method="POST" id="editForm">
     <div class="card">
         <div class="card-header">
             <h3>Structured Editing</h3>
             <p>Edit individual components of the MOM</p>
         </div>
-        
+
         <div class="form-group">
             <label for="title">Meeting Title *</label>
-            <input 
-                type="text" 
-                name="title" 
-                id="title" 
+            <input
+                type="text"
+                name="title"
+                id="title"
                 class="form-control"
                 value="{{ mom_data.title }}"
                 required
@@ -30,10 +29,10 @@
 
         <div class="form-group">
             <label for="date">Meeting Date *</label>
-            <input 
-                type="text" 
-                name="date" 
-                id="date" 
+            <input
+                type="text"
+                name="date"
+                id="date"
                 class="form-control"
                 value="{{ mom_data.date }}"
                 placeholder="2026-02-16"
@@ -43,36 +42,36 @@
 
         <div class="form-group">
             <label for="objective">Meeting Objective *</label>
-            <input 
-                type="text" 
-                name="objective" 
-                id="objective" 
+            <input
+                type="text"
+                name="objective"
+                id="objective"
                 class="form-control"
                 value="{{ mom_data.objective }}"
                 required
             >
         </div>
-        
+
         <div class="form-group">
             <label for="attendees">Attendees (comma-separated)</label>
-            <input 
-                type="text" 
-                name="attendees" 
-                id="attendees" 
+            <input
+                type="text"
+                name="attendees"
+                id="attendees"
                 class="form-control"
                 value="{{ mom_data.attendees|join(', ') if mom_data.attendees else '' }}"
                 placeholder="Alice Johnson, Bob Smith, Carol Davis"
             >
         </div>
-        
+
         <div class="form-group">
             <label>Decisions Made *</label>
             <div id="decisions-container">
                 {% for decision in mom_data.decisions %}
                 <div class="array-item">
-                    <input 
-                        type="text" 
-                        name="decision_{{ loop.index0 }}" 
+                    <input
+                        type="text"
+                        name="decision_{{ loop.index0 }}"
                         class="form-control"
                         value="{{ decision.text }}"
                     >
@@ -82,36 +81,36 @@
             </div>
             <button type="button" class="btn btn-secondary" onclick="addDecision()">+ Add Decision</button>
         </div>
-        
+
         <div class="form-group">
             <label>Action Items *</label>
             <div id="actions-container">
                 {% for item in mom_data.action_items %}
                 <div class="action-item">
-                    <input 
-                        type="text" 
-                        name="action_action_{{ loop.index0 }}" 
+                    <input
+                        type="text"
+                        name="action_action_{{ loop.index0 }}"
                         class="form-control"
                         placeholder="Action description"
                         value="{{ item.action }}"
                     >
-                    <input 
-                        type="text" 
-                        name="action_owner_{{ loop.index0 }}" 
+                    <input
+                        type="text"
+                        name="action_owner_{{ loop.index0 }}"
                         class="form-control"
                         placeholder="Owner"
                         value="{{ item.owner }}"
                     >
-                    <input 
-                        type="text" 
-                        name="action_deadline_{{ loop.index0 }}" 
+                    <input
+                        type="text"
+                        name="action_deadline_{{ loop.index0 }}"
                         class="form-control"
                         placeholder="Deadline (optional)"
                         value="{{ item.deadline or '' }}"
                     >
-                    <input 
-                        type="text" 
-                        name="action_status_{{ loop.index0 }}" 
+                    <input
+                        type="text"
+                        name="action_status_{{ loop.index0 }}"
                         class="form-control"
                         placeholder="Status (Open, In Progress, Completed)"
                         value="{{ item.status or 'Open' }}"
@@ -126,10 +125,10 @@
 
         <div class="form-group">
             <label for="parking_lot">Parking Lot (comma-separated)</label>
-            <input 
-                type="text" 
-                name="parking_lot" 
-                id="parking_lot" 
+            <input
+                type="text"
+                name="parking_lot"
+                id="parking_lot"
                 class="form-control"
                 value="{{ mom_data.parking_lot|join(', ') if mom_data.parking_lot else '' }}"
                 placeholder="Deferred items, follow-ups"
@@ -138,51 +137,44 @@
 
         <div class="form-group">
             <label for="notes">Notes</label>
-            <textarea 
-                name="notes" 
-                id="notes" 
-                rows="4" 
+            <textarea
+                name="notes"
+                id="notes"
+                rows="4"
                 class="form-control"
             >{{ mom_data.notes or '' }}</textarea>
         </div>
 
         <div class="form-group">
             <label for="confidentiality_flags">Confidentiality Flags (comma-separated)</label>
-            <input 
-                type="text" 
-                name="confidentiality_flags" 
-                id="confidentiality_flags" 
+            <input
+                type="text"
+                name="confidentiality_flags"
+                id="confidentiality_flags"
                 class="form-control"
                 value="{{ mom_data.confidentiality_flags|join(', ') if mom_data.confidentiality_flags else '' }}"
                 placeholder="Internal, Financial, Legal"
             >
         </div>
     </div>
-    
+
     <div class="card">
         <div class="card-header">
             <h3>Full Text Override</h3>
-            <p>Or edit the complete MOM text directly</p>
+            <p>Edit the complete MOM text directly</p>
         </div>
-        
-        <div class="form-group">
-            <label>
-                <input type="checkbox" name="use_text_override" id="use_text_override" value="true">
-                Use full text editor instead of structured fields
-            </label>
-        </div>
-        
-        <div class="form-group" id="text-override-group" style="display: none;">
-            <textarea 
-                name="mom_text_override" 
-                id="mom_text_override" 
-                rows="20" 
+
+        <div class="form-group" id="text-override-group">
+            <textarea
+                name="mom_text"
+                id="mom_text"
+                rows="20"
                 class="form-control monospace"
             >{{ mom_text }}</textarea>
             <small class="form-text">Direct text editing - be careful to maintain proper formatting</small>
         </div>
     </div>
-    
+
     <div class="form-actions">
         <a href="{{ url_for('index') }}" class="btn btn-secondary">Start Over</a>
         <button type="submit" class="btn btn-primary btn-large">Continue to Validation →</button>
@@ -192,8 +184,8 @@
 
 {% block extra_js %}
 <script>
-let decisionCount = {{ mom_data.decisions|length }};
-let actionCount = {{ mom_data.action_items|length }};
+let decisionCount = document.querySelectorAll('#decisions-container .array-item').length;
+let actionCount = Number(document.getElementById('action_count').value || 0);
 
 function addDecision() {
     const container = document.getElementById('decisions-container');
@@ -219,8 +211,7 @@ function addActionItem() {
         <button type="button" class="btn-remove" onclick="removeItem(this)">Remove</button>
     `;
     container.appendChild(div);
-    
-    // Update action count
+
     actionCount++;
     document.getElementById('action_count').value = actionCount;
 }
@@ -228,15 +219,5 @@ function addActionItem() {
 function removeItem(button) {
     button.parentElement.remove();
 }
-
-// Toggle text override
-document.getElementById('use_text_override').addEventListener('change', function() {
-    const textGroup = document.getElementById('text-override-group');
-    if (this.checked) {
-        textGroup.style.display = 'block';
-    } else {
-        textGroup.style.display = 'none';
-    }
-});
 </script>
 {% endblock %}

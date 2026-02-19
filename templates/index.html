@@ -9,7 +9,55 @@
 </div>
 
 <div class="card">
-    <form action="{{ url_for('process_input') }}" method="POST" enctype="multipart/form-data" id="inputForm">
+    <form action="/generate" method="POST" enctype="multipart/form-data" id="inputForm">
+
+        <div class="form-section">
+            <h3>Meeting Metadata</h3>
+
+            <div class="form-group">
+                <label for="title">Title (optional)</label>
+                <input
+                    type="text"
+                    name="title"
+                    id="title"
+                    class="form-control"
+                    placeholder="Weekly Leadership Sync"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="date">Date (optional)</label>
+                <input
+                    type="text"
+                    name="date"
+                    id="date"
+                    class="form-control"
+                    placeholder="2026-02-19"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="objective">Objective (optional)</label>
+                <input
+                    type="text"
+                    name="objective"
+                    id="objective"
+                    class="form-control"
+                    placeholder="Review delivery status and unblock dependencies"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="instructions">Instructions (optional)</label>
+                <textarea
+                    name="instructions"
+                    id="instructions"
+                    rows="3"
+                    class="form-control"
+                    placeholder="Any special output instructions"
+                ></textarea>
+            </div>
+        </div>
         
         <div class="form-section">
             <h3>Input Method</h3>

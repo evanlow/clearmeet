@@ -28,7 +28,7 @@
         <p>All required items must be checked before export</p>
     </div>
     
-    <form action="{{ url_for('export_mom') }}" method="POST" id="validationForm">
+    <form action="{{ url_for('validate_submit') }}" method="POST" id="validationForm">
         <div class="checklist">
             {% for item in checklist %}
             <div class="checklist-item">
