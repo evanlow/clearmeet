@@ -29,7 +29,9 @@ class Config:
     TESTING: bool = False
     
     # Session Configuration
-    SESSION_TYPE: str = 'filesystem'
+    SESSION_TYPE: str = 'cachelib'  # Use cachelib for server-side sessions
+    SESSION_CACHELIB: object = None  # Will use SimpleCache (in-memory) by default
+    SESSION_PERMANENT: bool = False  # Don't use permanent sessions
     PERMANENT_SESSION_LIFETIME: int = int(os.getenv('PERMANENT_SESSION_LIFETIME', '3600'))
     
     # File Upload Configuration

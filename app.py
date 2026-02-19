@@ -4,6 +4,8 @@ ClearMeet Flask Application
 Main Flask app with routes for MOM generation workflow.
 """
 from flask import Flask, render_template, request, session, redirect, url_for, send_file, flash, g, jsonify
+from flask_session import Session
+from cachelib import SimpleCache
 from werkzeug.utils import secure_filename
 import os
 import json
@@ -43,6 +45,15 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     # Load configuration
     config_class = get_config(config_name)
     app.config.from_object(config_class)
+    
+    # Initialize cachelib for server-side sessions (prevents cookie size limits)
+    app.config['SESSION_CACHELIB'] = SimpleCache()
+    logger.info(f"Session backend initialized: {app.config['SESSION_TYPE']}")
+    logger.info(f"Session cache instance: {type(app.config['SESSION_CACHELIB']).__name__}")
+    
+    # Initialize Flask-Session for server-side sessions
+    Session(app)
+    logger.info("Flask-Session initialized successfully")
     
     # Validate configuration
     is_valid, error_message = Config.validate_config()
@@ -107,11 +118,25 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     @app.route('/')
     def index():
         """Landing page with input options."""
-        # Clear any existing session data for fresh start
-        pending_flashes = session.get('_flashes')
-        session.clear()
-        if pending_flashes:
-            session['_flashes'] = pending_flashes
+        # Only clear session if explicitly requested or if session is stale
+        # Don't auto-clear to prevent losing data during workflow
+        clear_session = request.args.get('clear', 'false').lower() == 'true'
+        
+        if clear_session:
+            logger.info("Clearing session data (explicit clear requested)")
+            pending_flashes = session.get('_flashes')
+            session.clear()
+            if pending_flashes:
+                session['_flashes'] = pending_flashes
+        else:
+            # SESSION TRACKING LOG
+            logger.info("="*80)
+            logger.info("INDEX PAGE ACCESSED (session preserved)")
+            logger.info(f"Session SID: {session.sid if hasattr(session, 'sid') else 'N/A'}")
+            logger.info(f"Session keys: {list(session.keys())}")
+            logger.info(f"'mom_data' in session: {'mom_data' in session}")
+            logger.info("="*80)
+        
         return render_template('index.html')
     
     @app.route('/health', methods=['GET'])
@@ -127,6 +152,20 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             "status": "ok",
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "service": "clearmeet"
+        }), 200
+    
+    @app.route('/debug/session', methods=['GET'])
+    def debug_session():
+        """Debug endpoint to inspect current session state."""
+        return jsonify({
+            "session_sid": session.sid if hasattr(session, 'sid') else None,
+            "session_keys": list(session.keys()),
+            "has_mom_data": 'mom_data' in session,
+            "has_mom_text": 'mom_text' in session,
+            "mom_text_length": len(session.get('mom_text', '')),
+            "session_permanent": session.permanent,
+            "session_modified": session.modified,
+            "session_new": session.new if hasattr(session, 'new') else None
         }), 200
     
     @app.route('/process', methods=['GET', 'POST'])
@@ -313,6 +352,17 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             session['additional_context'] = instructions
             session['validated'] = False
             session['text_override'] = False
+            
+            # SESSION TRACKING LOG
+            logger.info("="*80)
+            logger.info("SESSION DATA STORED (process_input)")
+            logger.info(f"Session SID: {session.sid if hasattr(session, 'sid') else 'N/A'}")
+            logger.info(f"Session keys: {list(session.keys())}")
+            logger.info(f"mom_text length: {len(session['mom_text'])}")
+            logger.info(f"mom_data keys: {list(session['mom_data'].keys())}")
+            logger.info(f"Session modified: {session.modified}")
+            logger.info("="*80)
+            
             print(f"[DEBUG] ✓ Session data stored")
             print(f"[DEBUG] Session keys: {list(session.keys())}")
             
@@ -402,7 +452,17 @@ def create_app(config_name: Optional[str] = None) -> Flask:
         
         Shows MOM data with ability to edit decisions, action items, objective.
         """
+        # SESSION TRACKING LOG
+        logger.info("="*80)
+        logger.info("SESSION DATA RETRIEVAL (edit)")
+        logger.info(f"Session SID: {session.sid if hasattr(session, 'sid') else 'N/A'}")
+        logger.info(f"Session keys: {list(session.keys())}")
+        logger.info(f"'mom_data' in session: {'mom_data' in session}")
+        logger.info(f"Session modified: {session.modified}")
+        logger.info("="*80)
+        
         if 'mom_data' not in session:
+            logger.error("SESSION DATA MISSING: mom_data not found in session (edit)")
             flash('No MOM data found. Please start from the beginning.', 'warning')
             return redirect(url_for('index'))
         
@@ -518,6 +578,15 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             session['mom_json'] = normalized
             session['validated'] = False
             
+            # SESSION TRACKING LOG
+            logger.info("="*80)
+            logger.info("SESSION DATA UPDATED (edit_submit)")
+            logger.info(f"Session SID: {session.sid if hasattr(session, 'sid') else 'N/A'}")
+            logger.info(f"Session keys: {list(session.keys())}")
+            logger.info(f"mom_text length: {len(session.get('mom_text', ''))}")
+            logger.info(f"Session modified: {session.modified}")
+            logger.info("="*80)
+            
             flash('MOM updated successfully!', 'success')
             return redirect(url_for('validate_page'))
             
@@ -532,7 +601,17 @@ def create_app(config_name: Optional[str] = None) -> Flask:
         
         Enforces validation before allowing export.
         """
+        # SESSION TRACKING LOG
+        logger.info("="*80)
+        logger.info("SESSION DATA RETRIEVAL (validate_page)")
+        logger.info(f"Session SID: {session.sid if hasattr(session, 'sid') else 'N/A'}")
+        logger.info(f"Session keys: {list(session.keys())}")
+        logger.info(f"'mom_text' in session: {'mom_text' in session}")
+        logger.info(f"Session modified: {session.modified}")
+        logger.info("="*80)
+        
         if 'mom_text' not in session:
+            logger.error("SESSION DATA MISSING: mom_text not found in session (validate_page)")
             flash('No MOM data found. Please start from the beginning.', 'warning')
             return redirect(url_for('index'))
         
@@ -583,7 +662,17 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     @app.route('/validate', methods=['POST'])
     def validate_submit():
         """Validate checklist submission and mark session validated."""
+        # SESSION TRACKING LOG
+        logger.info("="*80)
+        logger.info("SESSION DATA RETRIEVAL (validate_submit)")
+        logger.info(f"Session SID: {session.sid if hasattr(session, 'sid') else 'N/A'}")
+        logger.info(f"Session keys: {list(session.keys())}")
+        logger.info(f"'mom_text' in session: {'mom_text' in session}")
+        logger.info(f"Session modified: {session.modified}")
+        logger.info("="*80)
+        
         if 'mom_text' not in session:
+            logger.error("SESSION DATA MISSING: mom_text not found in session (validate_submit)")
             flash('No MOM data found. Please start from the beginning.', 'warning')
             return redirect(url_for('index'))
 
@@ -599,6 +688,16 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             return redirect(url_for('validate_page'))
 
         session['validated'] = True
+        
+        # SESSION TRACKING LOG
+        logger.info("="*80)
+        logger.info("SESSION VALIDATED (validate_submit)")
+        logger.info(f"Session SID: {session.sid if hasattr(session, 'sid') else 'N/A'}")
+        logger.info(f"Session keys: {list(session.keys())}")
+        logger.info(f"Session modified: {session.modified}")
+        logger.info(f"Redirecting to export_mom")
+        logger.info("="*80)
+        
         flash('Validation checklist completed. Ready to export.', 'success')
         return redirect(url_for('export_mom'))
     
@@ -612,9 +711,24 @@ def create_app(config_name: Optional[str] = None) -> Flask:
         GET requests export directly (for testing/direct download).
         """
         try:
+            # SESSION TRACKING LOG
+            logger.info("="*80)
+            logger.info("SESSION DATA RETRIEVAL (export_mom)")
+            logger.info(f"Session SID: {session.sid if hasattr(session, 'sid') else 'N/A'}")
+            logger.info(f"Session keys: {list(session.keys())}")
+            logger.info(f"'mom_text' in session: {'mom_text' in session}")
+            logger.info(f"Request method: {request.method}")
+            logger.info(f"Request path: {request.path}")
+            logger.info(f"Session modified: {session.modified}")
+            
             # Check if session data exists (required for both GET and POST)
             mom_text = session.get('mom_text', '')
+            logger.info(f"mom_text retrieved: {len(mom_text)} characters")
+            logger.info("="*80)
+            
             if not mom_text:
+                logger.error("SESSION DATA MISSING: mom_text not found or empty in session (export_mom)")
+                logger.error(f"All session data: {dict(session)}")
                 flash('No MOM data found. Please generate a MOM first.', 'error')
                 return redirect(url_for('index'))
 
