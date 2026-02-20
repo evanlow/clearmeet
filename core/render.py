@@ -2,6 +2,7 @@
 MOM rendering and edit-application helpers.
 """
 from datetime import datetime, timezone
+from typing import Optional
 import textwrap
 
 from core.schema import MeetingMOM, ActionItem
@@ -84,12 +85,13 @@ def format_action_items(action_items: list[ActionItem]) -> list[str]:
     return lines
 
 
-def mom_to_text(mom: MeetingMOM) -> str:
+def mom_to_text(mom: MeetingMOM, agenda_items: Optional[list[dict]] = None) -> str:
     """
     Render a typed MOM object into corporate MOM text format.
 
     Args:
         mom: Validated MeetingMOM instance
+        agenda_items: Optional list of planned agenda items (dicts with title, duration_minutes, description)
 
     Returns:
         Formatted MOM text
@@ -114,6 +116,19 @@ def mom_to_text(mom: MeetingMOM) -> str:
             lines.append(f"  - {attendee}")
     else:
         lines.append("  None")
+
+    # Phase 2 Integration: Add Agenda section if available
+    if agenda_items:
+        lines.append("")
+        lines.append("Planned Agenda:")
+        total_duration = 0
+        for idx, item in enumerate(agenda_items, 1):
+            duration = item.get('duration_minutes', 0)
+            total_duration += duration
+            lines.append(f"  {idx}. {item.get('title', '')} ({duration}min)")
+            if item.get('description'):
+                lines.append(f"     {item.get('description')}")
+        lines.append(f"  Total: {total_duration}min")
 
     lines.append("")
     lines.append("Key Decisions:")

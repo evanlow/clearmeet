@@ -20,9 +20,10 @@ from core.parser import TranscriptParser
 from core.llm import extract_mom_from_transcript, render_mom_text, transcribe_audio
 from core.audio import AudioTranscriber
 from core.render import mom_to_text, apply_user_edits
-from core.schema import validate_mom_dict, MeetingMOM
+from core.schema import validate_mom_dict, MeetingMOM, MeetingObjective, AgendaItem
 from core.validation import MOMValidator, ValidationItem
 from core.export import PDFExporter
+from core.agenda import AgendaBuilder
 
 # Module-level progress tracking (shared across requests)
 # Use a lock for thread-safe updates
@@ -167,6 +168,124 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             "session_modified": session.modified,
             "session_new": session.new if hasattr(session, 'new') else None
         }), 200
+    
+    # Pre-Meeting Routes (Steps 1-2: Objective Definition + Agenda Building)
+    @app.route('/meeting/new', methods=['GET'])
+    def define_objective():
+        """Display structured objective definition form (Step 1)."""
+        logger.info("Objective definition page accessed")
+        return render_template('define_objective.html')
+    
+    @app.route('/meeting/define', methods=['POST'])
+    def save_objective():
+        """Save meeting objective to session and proceed to agenda builder (Step 1 → 2)."""
+        try:
+            business_issue = request.form.get('business_issue', '').strip()
+            objective = request.form.get('objective', '').strip()
+            expected_output = request.form.get('expected_output', '').strip()
+            
+            # Validate using Pydantic model
+            meeting_objective = MeetingObjective(
+                business_issue=business_issue,
+                objective=objective,
+                expected_output=expected_output
+            )
+            
+            # Store in session
+            session['meeting_objective'] = meeting_objective.model_dump()
+            session.modified = True
+            
+            logger.info("Meeting objective saved to session")
+            flash('Objective defined successfully. Now build your agenda.', 'success')
+            return redirect(url_for('build_agenda'))
+            
+        except Exception as e:
+            logger.error(f"Objective validation failed: {e}")
+            flash(f'Validation error: {str(e)}', 'error')
+            return redirect(url_for('define_objective'))
+    
+    @app.route('/meeting/agenda', methods=['GET'])
+    def build_agenda():
+        """Display agenda builder interface (Step 2)."""
+        # Require objective to be defined first
+        if 'meeting_objective' not in session:
+            flash('Please define the meeting objective first', 'warning')
+            return redirect(url_for('define_objective'))
+        
+        meeting_objective_data = session['meeting_objective']
+        agenda_items = session.get('agenda_items', [])
+        
+        logger.info(f"Agenda builder accessed, {len(agenda_items)} items in session")
+        return render_template(
+            'build_agenda.html',
+            meeting_objective=meeting_objective_data,
+            agenda_items=agenda_items
+        )
+    
+    @app.route('/meeting/agenda/generate', methods=['POST'])
+    def generate_agenda_ai():
+        """Generate AI-assisted agenda suggestions (Step 2)."""
+        try:
+            if 'meeting_objective' not in session:
+                return jsonify({"error": "No meeting objective defined"}), 400
+            
+            # Reconstruct MeetingObjective from session
+            objective_data = session['meeting_objective']
+            meeting_objective = MeetingObjective(**objective_data)
+            
+            # Generate agenda with AI
+            agenda_items = AgendaBuilder.generate_agenda_with_ai(meeting_objective)
+            
+            # Store in session
+            session['agenda_items'] = AgendaBuilder.serialize_agenda(agenda_items)
+            session.modified = True
+            
+            logger.info(f"AI generated {len(agenda_items)} agenda items")
+            return jsonify({
+                "success": True,
+                "agenda_items": AgendaBuilder.serialize_agenda(agenda_items),
+                "total_duration": AgendaBuilder.calculate_total_duration(agenda_items)
+            })
+            
+        except Exception as e:
+            logger.error(f"AI agenda generation failed: {e}")
+            return jsonify({"error": str(e)}), 500
+    
+    @app.route('/meeting/agenda/save', methods=['POST'])
+    def save_agenda():
+        """Save final agenda and proceed to existing transcript workflow."""
+        try:
+            # Get agenda items from form
+            agenda_data = request.get_json()
+            if not agenda_data or 'items' not in agenda_data:
+                flash('No agenda items provided', 'error')
+                return jsonify({"error": "No agenda items"}), 400
+            
+            # Validate agenda items
+            agenda_items = []
+            for item_data in agenda_data['items']:
+                agenda_item = AgendaItem(**item_data)
+                agenda_items.append(agenda_item)
+            
+            # Validate timing
+            is_valid, error_msg = AgendaBuilder.validate_agenda_timing(agenda_items)
+            if not is_valid:
+                return jsonify({"error": error_msg}), 400
+            
+            # Store in session
+            session['agenda_items'] = AgendaBuilder.serialize_agenda(agenda_items)
+            session.modified = True
+            
+            logger.info(f"Agenda saved: {len(agenda_items)} items, {AgendaBuilder.calculate_total_duration(agenda_items)} min total")
+            return jsonify({
+                "success": True,
+                "redirect_url": url_for('index')
+            })
+            
+        except Exception as e:
+            logger.error(f"Agenda save failed: {e}")
+            return jsonify({"error": str(e)}), 500
+
     
     @app.route('/process', methods=['GET', 'POST'])
     @app.route('/generate', methods=['POST'])
@@ -322,15 +441,25 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             instructions = _sanitize_text(request.form.get('instructions', '') or request.form.get('additional_context', ''))
             print(f"[DEBUG] Objective: '{objective[:100] if objective else 'None'}'")
             print(f"[DEBUG] Instructions: '{instructions[:100] if instructions else 'None'}'")
+            
+            # Phase 2 Integration: Pass pre-meeting planning data if available
+            planned_objective = session.get('meeting_objective')
+            agenda_items = session.get('agenda_items')
+            if planned_objective:
+                print(f"[DEBUG] Using planned objective from Step 1: {planned_objective.get('objective', '')[:100]}")
+            if agenda_items:
+                print(f"[DEBUG] Using planned agenda from Step 2: {len(agenda_items)} items")
 
             mom_data_raw = extract_mom_from_transcript(
                 transcript,
                 objective=objective or None,
-                instructions=instructions or None
+                instructions=instructions or None,
+                planned_objective=planned_objective,
+                agenda_items=agenda_items
             )
             validated_mom = validate_mom_dict(mom_data_raw)
             mom_data = validated_mom.model_dump(exclude_none=True)
-            mom_text = mom_to_text(validated_mom)
+            mom_text = mom_to_text(validated_mom, agenda_items=agenda_items)
             print(f"[DEBUG] ✓ MOM generated successfully")
             print(f"[DEBUG] MOM data keys: {list(mom_data.keys()) if mom_data else None}")
             print(f"[DEBUG] MOM objective: {mom_data.get('objective', 'N/A')[:100] if mom_data else 'N/A'}")
@@ -466,14 +595,39 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             flash('No MOM data found. Please start from the beginning.', 'warning')
             return redirect(url_for('index'))
         
-        mom_data = session.get('mom_data', {})
+        mom_data = session.get('mom_data', {}).copy()
         mom_text = session.get('mom_text', '')
         if session.get('mom_text_path') and (not mom_text or mom_text.endswith('...')):
             loaded_text = _load_text_from_path(session.get('mom_text_path'))
             if loaded_text:
                 mom_text = loaded_text
         
-        return render_template('edit.html', mom_data=mom_data, mom_text=mom_text)
+        # Phase 2 Integration: Pre-populate objective from planned objective if not user-edited
+        planned_objective = session.get('meeting_objective')
+        if planned_objective and not session.get('objective_user_edited'):
+            # Only override if current objective looks auto-generated or generic
+            current_obj = mom_data.get('objective', '').lower()
+            if (not current_obj or 
+                current_obj.startswith('meeting to discuss') or
+                current_obj.startswith('objective not provided') or
+                len(current_obj) < 15):
+                mom_data['objective'] = planned_objective.get('objective', '')
+                logger.info(f"Pre-populated objective from Step 1: {mom_data['objective'][:100]}")
+        
+        # Phase 2 Integration: Pass agenda items for display
+        agenda_items = session.get('agenda_items', [])
+        if agenda_items:
+            total_agenda_duration = sum(item.get('duration_minutes', 0) for item in agenda_items)
+        else:
+            total_agenda_duration = 0
+        
+        return render_template(
+            'edit.html', 
+            mom_data=mom_data, 
+            mom_text=mom_text,
+            agenda_items=agenda_items,
+            total_agenda_duration=total_agenda_duration
+        )
     
     @app.route('/update', methods=['POST'])
     @app.route('/edit', methods=['POST'])
@@ -566,7 +720,9 @@ def create_app(config_name: Optional[str] = None) -> Flask:
                 session['mom_text_path'] = mom_text_path
                 session['text_override'] = True
             else:
-                rendered_text = mom_to_text(typed_mom)
+                # Phase 2 Integration: Include agenda when rendering MOM text
+                agenda_items_for_render = session.get('agenda_items', [])
+                rendered_text = mom_to_text(typed_mom, agenda_items=agenda_items_for_render)
                 mom_text_preview, mom_text_path = _persist_mom_text(rendered_text)
                 session['mom_text'] = mom_text_preview
                 session['mom_text_path'] = mom_text_path

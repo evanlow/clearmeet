@@ -1,0 +1,349 @@
+{% extends "base.html" %}
+
+{% block title %}ClearMeet - Build Agenda{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Step 2: Plan Structured Agenda</h2>
+    <p>Build a time-boxed agenda aligned to your meeting objective. Use AI suggestions or create manually.</p>
+</div>
+
+<!-- Display Meeting Objective Context -->
+<div class="objective-summary-card">
+    <h3>Meeting Objective (Step 1)</h3>
+    <div class="objective-summary">
+        <div class="summary-item">
+            <strong>Business Issue:</strong>
+            <p>{{ meeting_objective.business_issue }}</p>
+        </div>
+        <div class="summary-item">
+            <strong>Objective:</strong>
+            <p>{{ meeting_objective.objective }}</p>
+        </div>
+        <div class="summary-item">
+            <strong>Expected Output:</strong>
+            <p>{{ meeting_objective.expected_output }}</p>
+        </div>
+    </div>
+</div>
+
+<!-- AI Generation Section -->
+<div class="card">
+    <div class="card-header">
+        <h3>AI-Assisted Agenda Generation</h3>
+    </div>
+    <div class="ai-generation-section">
+        <p>Let AI suggest a structured agenda based on your objective. You can edit suggestions afterward.</p>
+        <button type="button" class="btn btn-primary" id="generateAgendaBtn" onclick="generateAgendaWithAI()">
+            Generate Agenda with AI
+        </button>
+        <span id="aiLoadingIndicator" class="ai-loading" style="display: none;">Generating...</span>
+    </div>
+</div>
+
+<!-- Agenda Items Section -->
+<div class="card">
+    <div class="card-header">
+        <h3>Agenda Items</h3>
+        <div class="agenda-summary">
+            <span id="agendaItemCount">{{ agenda_items|length }} items</span>
+            <span class="separator">|</span>
+            <span id="totalDuration">0 min total</span>
+        </div>
+    </div>
+    
+    <div id="agendaItemsContainer">
+        {% if agenda_items %}
+            {% for item in agenda_items %}
+            <div class="agenda-item" data-index="{{ loop.index0 }}">
+                <div class="agenda-item-number">{{ loop.index }}</div>
+                <div class="agenda-item-content">
+                    <input
+                        type="text"
+                        class="form-control agenda-title"
+                        placeholder="Agenda item title"
+                        value="{{ item.title }}"
+                        required
+                    >
+                    <div class="agenda-item-meta">
+                        <input
+                            type="number"
+                            class="form-control agenda-duration"
+                            placeholder="Minutes"
+                            value="{{ item.duration_minutes }}"
+                            min="1"
+                            max="180"
+                            required
+                        >
+                        <span class="duration-label">minutes</span>
+                        <input
+                            type="text"
+                            class="form-control agenda-description"
+                            placeholder="Description (optional)"
+                            value="{{ item.description or '' }}"
+                        >
+                    </div>
+                </div>
+                <button type="button" class="btn-remove" onclick="removeAgendaItem(this)">Remove</button>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p class="empty-state" id="emptyState">No agenda items yet. Use AI generation or add manually below.</p>
+        {% endif %}
+    </div>
+    
+    <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="addAgendaItem()">+ Add Agenda Item</button>
+    </div>
+</div>
+
+<!-- Agenda Guidance -->
+<div class="agenda-guidance">
+    <h4>Agenda Planning Best Practices</h4>
+    <ul>
+        <li><strong>Sequence logically:</strong> Start with context-setting, end with action item assignment</li>
+        <li><strong>Allocate realistic time:</strong> 5-30 minutes per item; total meeting 60-90 minutes</li>
+        <li><strong>Be specific:</strong> Use action-oriented titles (Review, Decide, Approve, Assign)</li>
+        <li><strong>Circulate 24h before:</strong> Share finalized agenda at least 24 hours before meeting</li>
+    </ul>
+</div>
+
+<!-- Form Actions -->
+<div class="form-actions-bottom">
+    <a href="{{ url_for('define_objective') }}" class="btn btn-secondary">Back to Objective</a>
+    <button type="button" class="btn btn-primary btn-large" onclick="saveAgendaAndProceed()">Save Agenda & Continue to Meeting</button>
+</div>
+
+<!-- Loading Overlay -->
+<div id="saveLoadingOverlay" class="loading-overlay" style="display: none;">
+    <div class="loading-card">
+        <div class="spinner"></div>
+        <h3>Saving agenda...</h3>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Generate agenda with AI
+async function generateAgendaWithAI() {
+    const btn = document.getElementById('generateAgendaBtn');
+    const indicator = document.getElementById('aiLoadingIndicator');
+    
+    btn.disabled = true;
+    indicator.style.display = 'inline';
+    
+    try {
+        const response = await fetch('{{ url_for("generate_agenda_ai") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'AI generation failed');
+        }
+        
+        // Clear existing items
+        const container = document.getElementById('agendaItemsContainer');
+        container.innerHTML = '';
+        
+        // Add AI-generated items
+        data.agenda_items.forEach((item, index) => {
+            addAgendaItemWithData(item, index);
+        });
+        
+        updateAgendaSummary();
+        
+        // Hide empty state
+        const emptyState = document.getElementById('emptyState');
+        if (emptyState) {
+            emptyState.style.display = 'none';
+        }
+        
+        alert('Agenda generated successfully! Review and edit as needed.');
+        
+    } catch (error) {
+        alert('Error generating agenda: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        indicator.style.display = 'none';
+    }
+}
+
+// Add agenda item with existing data
+function addAgendaItemWithData(itemData, index) {
+    const container = document.getElementById('agendaItemsContainer');
+    const emptyState = document.getElementById('emptyState');
+    if (emptyState) {
+        emptyState.style.display = 'none';
+    }
+    
+    const itemDiv = document.createElement('div');
+    itemDiv.className = 'agenda-item';
+    itemDiv.dataset.index = index;
+    
+    itemDiv.innerHTML = `
+        <div class="agenda-item-number">${index + 1}</div>
+        <div class="agenda-item-content">
+            <input
+                type="text"
+                class="form-control agenda-title"
+                placeholder="Agenda item title"
+                value="${itemData.title || ''}"
+                required
+            >
+            <div class="agenda-item-meta">
+                <input
+                    type="number"
+                    class="form-control agenda-duration"
+                    placeholder="Minutes"
+                    value="${itemData.duration_minutes || 15}"
+                    min="1"
+                    max="180"
+                    required
+                >
+                <span class="duration-label">minutes</span>
+                <input
+                    type="text"
+                    class="form-control agenda-description"
+                    placeholder="Description (optional)"
+                    value="${itemData.description || ''}"
+                >
+            </div>
+        </div>
+        <button type="button" class="btn-remove" onclick="removeAgendaItem(this)">Remove</button>
+    `;
+    
+    container.appendChild(itemDiv);
+    attachAgendaItemListeners(itemDiv);
+}
+
+// Add new empty agenda item
+function addAgendaItem() {
+    const container = document.getElementById('agendaItemsContainer');
+    const currentCount = container.querySelectorAll('.agenda-item').length;
+    
+    addAgendaItemWithData({
+        title: '',
+        duration_minutes: 15,
+        description: ''
+    }, currentCount);
+    
+    updateAgendaSummary();
+}
+
+// Remove agenda item
+function removeAgendaItem(btn) {
+    btn.closest('.agenda-item').remove();
+    renumberAgendaItems();
+    updateAgendaSummary();
+    
+    // Show empty state if no items
+    const container = document.getElementById('agendaItemsContainer');
+    if (container.querySelectorAll('.agenda-item').length === 0) {
+        container.innerHTML = '<p class="empty-state" id="emptyState">No agenda items yet. Use AI generation or add manually below.</p>';
+    }
+}
+
+// Renumber agenda items after deletion
+function renumberAgendaItems() {
+    const items = document.querySelectorAll('.agenda-item');
+    items.forEach((item, index) => {
+        item.dataset.index = index;
+        item.querySelector('.agenda-item-number').textContent = index + 1;
+    });
+}
+
+// Update agenda summary (count and total duration)
+function updateAgendaSummary() {
+    const items = document.querySelectorAll('.agenda-item');
+    const count = items.length;
+    
+    let totalDuration = 0;
+    items.forEach(item => {
+        const durationInput = item.querySelector('.agenda-duration');
+        totalDuration += parseInt(durationInput.value) || 0;
+    });
+    
+    document.getElementById('agendaItemCount').textContent = `${count} item${count !== 1 ? 's' : ''}`;
+    document.getElementById('totalDuration').textContent = `${totalDuration} min total`;
+}
+
+// Attach listeners to agenda item inputs
+function attachAgendaItemListeners(itemDiv) {
+    const durationInput = itemDiv.querySelector('.agenda-duration');
+    durationInput.addEventListener('input', updateAgendaSummary);
+}
+
+// Collect agenda data from form
+function collectAgendaData() {
+    const items = document.querySelectorAll('.agenda-item');
+    const agendaItems = [];
+    
+    items.forEach(item => {
+        const title = item.querySelector('.agenda-title').value.trim();
+        const duration = parseInt(item.querySelector('.agenda-duration').value) || 0;
+        const description = item.querySelector('.agenda-description').value.trim();
+        
+        if (title && duration > 0) {
+            agendaItems.push({
+                title: title,
+                duration_minutes: duration,
+                description: description || null
+            });
+        }
+    });
+    
+    return agendaItems;
+}
+
+// Save agenda and proceed to meeting input
+async function saveAgendaAndProceed() {
+    const agendaItems = collectAgendaData();
+    
+    if (agendaItems.length === 0) {
+        alert('Please add at least one agenda item before continuing');
+        return;
+    }
+    
+    const overlay = document.getElementById('saveLoadingOverlay');
+    overlay.style.display = 'flex';
+    
+    try {
+        const response = await fetch('{{ url_for("save_agenda") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ items: agendaItems })
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to save agenda');
+        }
+        
+        // Redirect to main input page
+        window.location.href = data.redirect_url;
+        
+    } catch (error) {
+        overlay.style.display = 'none';
+        alert('Error saving agenda: ' + error.message);
+    }
+}
+
+// Initialize: attach listeners to existing items
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.agenda-item').forEach(item => {
+        attachAgendaItemListeners(item);
+    });
+    updateAgendaSummary();
+});
+</script>
+{% endblock %}

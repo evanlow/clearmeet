@@ -378,3 +378,286 @@ body {
         align-items: stretch;
     }
 }
+
+/* ========================================
+   Pre-Meeting Workflow Styles (Steps 1-2)
+   ======================================== */
+
+/* Workflow Options (Index Page) */
+.workflow-options {
+    display: flex;
+    gap: 2rem;
+    align-items: stretch;
+    margin: 2rem 0;
+}
+
+.workflow-card {
+    flex: 1;
+    background: var(--panel);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: 2rem;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.workflow-card:hover {
+    border-color: var(--accent);
+    box-shadow: var(--shadow);
+    transform: translateY(-4px);
+}
+
+.workflow-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.workflow-card h3 {
+    color: var(--accent-strong);
+    margin-bottom: 0.75rem;
+    font-size: 1.25rem;
+}
+
+.workflow-card p {
+    color: var(--ink-muted);
+    margin-bottom: 1.5rem;
+    line-height: 1.6;
+}
+
+.workflow-separator {
+    display: flex;
+    align-items: center;
+    color: var(--ink-muted);
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+/* Objective Definition Page */
+.objective-guidance {
+    background: var(--panel-alt);
+    border-left: 4px solid var(--accent);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-top: 2rem;
+}
+
+.objective-guidance h4 {
+    color: var(--accent-strong);
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+}
+
+.objective-guidance ul {
+    margin-left: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.objective-guidance li {
+    margin-bottom: 0.5rem;
+    line-height: 1.6;
+}
+
+.guidance-example {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+    font-style: italic;
+    color: var(--ink-muted);
+}
+
+/* Agenda Building Page */
+.objective-summary-card {
+    background: var(--panel);
+    border: 2px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--shadow);
+}
+
+.objective-summary-card h3 {
+    color: var(--accent-strong);
+    margin-bottom: 1rem;
+    font-size: 1.25rem;
+}
+
+.objective-summary {
+    display: grid;
+    gap: 1rem;
+}
+
+.summary-item strong {
+    display: block;
+    color: var(--ink);
+    margin-bottom: 0.25rem;
+    font-weight: 600;
+}
+
+.summary-item p {
+    color: var(--ink-muted);
+    line-height: 1.6;
+    margin: 0;
+}
+
+/* AI Generation Section */
+.ai-generation-section {
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.ai-generation-section p {
+    color: var(--ink-muted);
+    margin-bottom: 1rem;
+}
+
+.ai-loading {
+    display: inline-block;
+    margin-left: 1rem;
+    color: var(--accent);
+    font-style: italic;
+}
+
+/* Agenda Items */
+.agenda-summary {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    color: var(--ink-muted);
+    font-size: 0.9rem;
+}
+
+.agenda-summary .separator {
+    color: var(--border);
+}
+
+.agenda-item {
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    gap: 1rem;
+    align-items: start;
+    background: var(--panel-alt);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    transition: border-color 0.2s ease;
+}
+
+.agenda-item:hover {
+    border-color: var(--accent);
+}
+
+.agenda-item-number {
+    width: 40px;
+    height: 40px;
+    background: var(--accent);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.agenda-item-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    flex: 1;
+}
+
+.agenda-title {
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.agenda-item-meta {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.agenda-duration {
+    width: 80px;
+}
+
+.duration-label {
+    color: var(--ink-muted);
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.agenda-description {
+    flex: 1;
+    font-size: 0.9rem;
+}
+
+.empty-state {
+    text-align: center;
+    color: var(--ink-muted);
+    padding: 2rem;
+    font-style: italic;
+}
+
+/* Agenda Guidance */
+.agenda-guidance {
+    background: var(--panel);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    margin-top: 2rem;
+}
+
+.agenda-guidance h4 {
+    color: var(--accent-strong);
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+}
+
+.agenda-guidance ul {
+    margin-left: 1.5rem;
+}
+
+.agenda-guidance li {
+    margin-bottom: 0.5rem;
+    line-height: 1.6;
+}
+
+.form-actions-bottom {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 2px solid var(--border);
+}
+
+/* Responsive for Pre-Meeting Workflow */
+@media (max-width: 768px) {
+    .workflow-options {
+        flex-direction: column;
+    }
+    
+    .workflow-separator {
+        justify-content: center;
+        padding: 1rem 0;
+    }
+    
+    .agenda-item {
+        grid-template-columns: 1fr;
+    }
+    
+    .agenda-item-number {
+        margin: 0 auto;
+    }
+    
+    .agenda-item-meta {
+        flex-wrap: wrap;
+    }
+    
+    .form-actions-bottom {
+        flex-direction: column;
+    }
+}

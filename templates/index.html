@@ -5,10 +5,35 @@
 {% block content %}
 <div class="page-header">
     <h2>Input</h2>
-    <p>Paste a transcript or upload an audio file to generate structured meeting minutes.</p>
+    <p>Start with structured meeting planning or generate MOM from transcript.</p>
 </div>
 
-<div class="card">
+<!-- Workflow Options -->
+<div class="workflow-options">
+    <div class="workflow-card">
+        <div class="workflow-icon">📋</div>
+        <h3>Start with Meeting Planning</h3>
+        <p>Begin with structured objective definition and agenda building (Steps 1-2), then conduct your meeting.</p>
+        <a href="{{ url_for('define_objective') }}" class="btn btn-primary">Define Objective & Build Agenda</a>
+    </div>
+    
+    <div class="workflow-separator">
+        <span>OR</span>
+    </div>
+    
+    <div class="workflow-card">
+        <div class="workflow-icon">📝</div>
+        <h3>Generate MOM from Meeting</h3>
+        <p>Already completed your meeting? Generate minutes from audio recording or transcript.</p>
+        <a href="#transcript-section" class="btn btn-secondary workflow-scroll-btn">Go to Transcript Input</a>
+    </div>
+</div>
+
+<!-- Transcript/Audio Input Section -->
+<div class="card" id="transcript-section">
+    <div class="card-header">
+        <h3>Generate MOM from Transcript or Audio</h3>
+    </div>
     <form action="/generate" method="POST" enctype="multipart/form-data" id="inputForm">
         <div class="form-group">
             <label for="objective">Objective (optional)</label>

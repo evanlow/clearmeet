@@ -7,6 +7,83 @@ from pydantic import BaseModel, Field, ValidationError, field_validator
 from typing import Optional
 
 
+class MeetingObjective(BaseModel):
+    """Structured meeting objective definition (Step 1 - Dyna Electric training)."""
+    
+    business_issue: str = Field(..., min_length=10, description="Business issue requiring discussion")
+    objective: str = Field(..., min_length=15, description="Specific outcome-based meeting objective")
+    expected_output: str = Field(..., min_length=10, description="Expected decision or output")
+    
+    @field_validator('business_issue')
+    @classmethod
+    def business_issue_not_empty(cls, v: str) -> str:
+        """Ensure business issue is meaningful."""
+        if not v or len(v.strip()) < 10:
+            raise ValueError("Business issue must be at least 10 characters")
+        return v.strip()
+    
+    @field_validator('objective')
+    @classmethod
+    def objective_not_empty(cls, v: str) -> str:
+        """Ensure objective is specific and outcome-based."""
+        if not v or len(v.strip()) < 15:
+            raise ValueError("Objective must be at least 15 characters and outcome-based")
+        return v.strip()
+    
+    @field_validator('expected_output')
+    @classmethod
+    def expected_output_not_empty(cls, v: str) -> str:
+        """Ensure expected output is clear."""
+        if not v or len(v.strip()) < 10:
+            raise ValueError("Expected output must be at least 10 characters")
+        return v.strip()
+    
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "business_issue": "Delivery delays affecting Q2 targets due to vendor coordination issues",
+                    "objective": "Align interdepartmental action plan to resolve vendor coordination and recover timeline",
+                    "expected_output": "Approved action plan with clear ownership and 2-week checkpoint schedule"
+                }
+            ]
+        }
+    }
+
+
+class AgendaItem(BaseModel):
+    """Single agenda item for structured meeting planning (Step 2 - Dyna Electric training)."""
+    
+    title: str = Field(..., min_length=3, description="Agenda item title")
+    duration_minutes: int = Field(..., ge=1, le=180, description="Estimated duration in minutes")
+    description: Optional[str] = Field(None, description="Additional context or notes")
+    
+    @field_validator('title')
+    @classmethod
+    def title_not_empty(cls, v: str) -> str:
+        """Ensure title is meaningful."""
+        if not v or len(v.strip()) < 3:
+            raise ValueError("Agenda item title must be at least 3 characters")
+        return v.strip()
+    
+    model_config = {
+        "json_schema_extra": {
+            "examples": [
+                {
+                    "title": "Review current vendor performance metrics",
+                    "duration_minutes": 15,
+                    "description": "Present Q1 data from procurement dashboard"
+                },
+                {
+                    "title": "Identify root causes and blockers",
+                    "duration_minutes": 20,
+                    "description": "Facilitated discussion with ops, procurement, and logistics"
+                }
+            ]
+        }
+    }
+
+
 class Decision(BaseModel):
     """A decision made during the meeting."""
     text: str = Field(..., min_length=3, description="Decision text")

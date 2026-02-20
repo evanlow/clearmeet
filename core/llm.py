@@ -116,7 +116,9 @@ def transcribe_audio(file_path: str, progress_callback: Optional[Callable[[dict]
 def extract_mom_from_transcript(
     transcript: str,
     objective: Optional[str] = None,
-    instructions: Optional[str] = None
+    instructions: Optional[str] = None,
+    planned_objective: Optional[dict] = None,
+    agenda_items: Optional[list[dict]] = None
 ) -> dict[str, Any]:
     """
     Extract structured MOM from transcript using OpenAI.
@@ -125,6 +127,8 @@ def extract_mom_from_transcript(
         transcript: Meeting transcript text
         objective: Optional objective provided by user
         instructions: Optional extraction instructions
+        planned_objective: Optional pre-defined meeting objective from Step 1 (dict with business_issue, objective, expected_output)
+        agenda_items: Optional agenda items from Step 2 (list of dicts with title, duration_minutes, description)
 
     Returns:
         Structured MOM data as dictionary
@@ -145,11 +149,40 @@ Rules:
 - Use professional business language and be specific.
 """
 
-    user_sections = [f"Meeting Transcript:\n\n{transcript}"]
+    user_sections = []
+    
+    # Add planned objective if available (Step 1 data)
+    if planned_objective:
+        user_sections.append(f"""Planned Meeting Objective (from pre-meeting planning):
+Business Issue: {planned_objective.get('business_issue', '')}
+Objective: {planned_objective.get('objective', '')}
+Expected Output: {planned_objective.get('expected_output', '')}
+
+Use the planned objective as the primary objective for this MOM.""")
+    
+    # Add agenda if available (Step 2 data)
+    if agenda_items:
+        agenda_text = "Planned Agenda (from pre-meeting planning):\n"
+        total_duration = 0
+        for idx, item in enumerate(agenda_items, 1):
+            duration = item.get('duration_minutes', 0)
+            total_duration += duration
+            agenda_text += f"{idx}. {item.get('title', '')} ({duration}min)"
+            if item.get('description'):
+                agenda_text += f" - {item.get('description')}"
+            agenda_text += "\n"
+        agenda_text += f"\nTotal planned duration: {total_duration}min"
+        user_sections.append(agenda_text)
+    
+    # Add transcript
+    user_sections.append(f"Meeting Transcript:\n\n{transcript}")
+    
+    # Add optional user-provided objective and instructions
     if objective:
-        user_sections.insert(0, f"Objective (if known): {objective}")
+        user_sections.insert(0, f"Additional objective context: {objective}")
     if instructions:
         user_sections.insert(0, f"Additional instructions: {instructions}")
+    
     user_prompt = "\n\n".join(user_sections)
 
     client = _get_client()
@@ -198,15 +231,19 @@ Rules:
     raise ValueError("Failed to parse JSON response from model.")
 
 
-def render_mom_text(mom_data: dict) -> str:
+def render_mom_text(
+    mom_data: Optional[dict[str, Any]],
+    agenda_items: Optional[list[dict]] = None
+) -> str:
     """
-    Render structured MOM data into formatted text.
+    Render structured MOM data into formatted text, with fallback logic.
 
     Args:
         mom_data: Structured MOM data
+        agenda_items: Optional list of planned agenda items
 
     Returns:
-        Formatted MOM text
+        Formatted MOM text string
     """
     if not mom_data:
         return ""
@@ -259,4 +296,4 @@ def render_mom_text(mom_data: dict) -> str:
         except ValueError:
             return ""
 
-    return mom_to_text(typed_mom)
+    return mom_to_text(typed_mom, agenda_items=agenda_items)

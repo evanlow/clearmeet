@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}ClearMeet - Define Objective{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Step 1: Clarify Meeting Objective</h2>
+    <p>Define a clear, outcome-based objective for your interdepartmental meeting.</p>
+</div>
+
+<div class="card">
+    <form action="{{ url_for('save_objective') }}" method="POST" id="objectiveForm">
+        <div class="form-group">
+            <label for="business_issue">Business Issue Requiring Discussion *</label>
+            <textarea
+                name="business_issue"
+                id="business_issue"
+                rows="3"
+                class="form-control"
+                placeholder="E.g., Delivery delays affecting Q2 targets due to vendor coordination issues"
+                required
+            >{{ request.form.get('business_issue', '') }}</textarea>
+            <small class="form-text">Describe the specific problem or situation requiring discussion (minimum 10 characters)</small>
+        </div>
+
+        <div class="form-group">
+            <label for="objective">Specific, Outcome-Based Meeting Objective *</label>
+            <textarea
+                name="objective"
+                id="objective"
+                rows="3"
+                class="form-control"
+                placeholder="E.g., Align interdepartmental action plan to resolve vendor coordination and recover timeline"
+                required
+            >{{ request.form.get('objective', '') }}</textarea>
+            <small class="form-text">State what you want to achieve, not just discuss (minimum 15 characters)</small>
+        </div>
+
+        <div class="form-group">
+            <label for="expected_output">Expected Decision or Output *</label>
+            <textarea
+                name="expected_output"
+                id="expected_output"
+                rows="3"
+                class="form-control"
+                placeholder="E.g., Approved action plan with clear ownership and 2-week checkpoint schedule"
+                required
+            >{{ request.form.get('expected_output', '') }}</textarea>
+            <small class="form-text">What specific deliverable or decision should result from this meeting? (minimum 10 characters)</small>
+        </div>
+
+        <div class="objective-guidance">
+            <h4>Guidance for Outcome-Driven Objectives</h4>
+            <ul>
+                <li><strong>Business Issue:</strong> What specific problem needs solving? Be concrete.</li>
+                <li><strong>Objective:</strong> What do you want to achieve? Use action verbs (align, decide, approve, resolve).</li>
+                <li><strong>Expected Output:</strong> What tangible result should emerge? (decision, plan, approval, assignment)</li>
+            </ul>
+            <p class="guidance-example"><strong>Example:</strong> Instead of "Discuss project status," write "<em>Review project blockers and assign clear owners to resolve delays</em>"</p>
+        </div>
+
+        <div class="form-actions">
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-primary btn-large">Continue to Agenda Planning</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Client-side validation for minimum lengths
+const objectiveForm = document.getElementById('objectiveForm');
+
+if (objectiveForm) {
+    objectiveForm.addEventListener('submit', function(e) {
+        const businessIssue = document.getElementById('business_issue').value.trim();
+        const objective = document.getElementById('objective').value.trim();
+        const expectedOutput = document.getElementById('expected_output').value.trim();
+
+        if (businessIssue.length < 10) {
+            alert('Business issue must be at least 10 characters');
+            e.preventDefault();
+            return false;
+        }
+
+        if (objective.length < 15) {
+            alert('Meeting objective must be at least 15 characters');
+            e.preventDefault();
+            return false;
+        }
+
+        if (expectedOutput.length < 10) {
+            alert('Expected output must be at least 10 characters');
+            e.preventDefault();
+            return false;
+        }
+    });
+}
+</script>
+{% endblock %}
