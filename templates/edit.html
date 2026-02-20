@@ -82,6 +82,9 @@
 
             <div class="form-group">
                 <label>Action Items</label>
+                <div class="deadline-helper-note">
+                    💡 <strong>Deadline tips:</strong> Use dates like "2026-03-15" or flexible text like "Next week", "Friday", "End of month"
+                </div>
                 <div id="actions-container">
                     {% for item in mom_data.action_items %}
                     <div class="action-item">
@@ -99,13 +102,21 @@
                             placeholder="Owner"
                             value="{{ item.owner }}"
                         >
-                        <input
-                            type="text"
-                            name="action_deadline_{{ loop.index0 }}"
-                            class="form-control"
-                            placeholder="Deadline"
-                            value="{{ item.deadline or '' }}"
-                        >
+                        <div class="deadline-input-group">
+                            <input
+                                type="date"
+                                class="form-control deadline-picker"
+                                data-index="{{ loop.index0 }}"
+                                title="Click to select a date"
+                            >
+                            <input
+                                type="text"
+                                name="action_deadline_{{ loop.index0 }}"
+                                class="form-control deadline-text"
+                                placeholder="e.g., 2026-03-15, Next week, Friday"
+                                value="{{ item.deadline or '' }}"
+                            >
+                        </div>
                         <button type="button" class="btn-remove" onclick="removeItem(this)">Remove</button>
                     </div>
                     {% endfor %}
@@ -161,13 +172,44 @@ function addActionItem() {
     row.innerHTML = `
         <input type="text" name="action_action_${actionCount}" class="form-control" placeholder="Action">
         <input type="text" name="action_owner_${actionCount}" class="form-control" placeholder="Owner">
-        <input type="text" name="action_deadline_${actionCount}" class="form-control" placeholder="Deadline">
+        <div class="deadline-input-group">
+            <input type="date" class="form-control deadline-picker" data-index="${actionCount}" title="Click to select a date">
+            <input type="text" name="action_deadline_${actionCount}" class="form-control deadline-text" placeholder="e.g., 2026-03-15, Next week, Friday">
+        </div>
         <button type="button" class="btn-remove" onclick="removeItem(this)">Remove</button>
     `;
     container.appendChild(row);
+    
+    // Attach event listener to the new date picker
+    const datePicker = row.querySelector('.deadline-picker');
+    const textField = row.querySelector('.deadline-text');
+    attachDatePickerListener(datePicker, textField);
+    
     actionCount++;
     document.getElementById('action_count').value = actionCount;
 }
+
+// Handle date picker and text field synchronization
+function attachDatePickerListener(datePicker, textField) {
+    datePicker.addEventListener('change', function() {
+        if (this.value) {
+            textField.value = this.value;
+        }
+    });
+    
+    // If text field already has an ISO date, populate the date picker
+    if (textField.value && /^\d{4}-\d{2}-\d{2}/.test(textField.value)) {
+        datePicker.value = textField.value.substring(0, 10);
+    }
+}
+
+// Initialize date pickers on page load
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.deadline-picker').forEach(picker => {
+        const textField = picker.nextElementSibling;
+        attachDatePickerListener(picker, textField);
+    });
+});
 
 function removeItem(button) {
     button.parentElement.remove();

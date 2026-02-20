@@ -246,6 +246,14 @@ pytest tests/ --cov=core --cov-report=html
 pytest tests/ -v | findstr "passed"
 ```
 
+## Directive Compliance Session Log
+
+Track directive compliance in `session_log.md` using the required KPI format from `prime_directive.md`.
+
+- Create/update `session_log.md` at session start, major checkpoints, and handoff.
+- Use the reusable entry template already included in `session_log.md`.
+- Keep entries chronological and include KPI score, status breakdown, actions, blockers, and next steps.
+
 ### Test Coverage
 
 - `test_parser.py` - 25 tests (text cleaning, speaker extraction, validation)

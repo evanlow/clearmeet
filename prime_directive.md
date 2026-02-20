@@ -1,6 +1,6 @@
 # Prime Directive: Development Guidelines
 
-**Last Updated:** February 19, 2026  
+**Last Updated:** February 20, 2026  
 **Purpose:** Ensure high-quality, maintainable code by learning from past experiences and establishing best practices for all team members, AI agents, and contributors.
 
 ---
@@ -25,6 +25,9 @@ For UI Changes (HTML/CSS/JavaScript):
 □ Manual testing documented in commit message
 → Ready to commit
 
+Session Log Cadence (Mandatory):
+□ Append `session_log.md` at start, each test run, each major implementation cycle, and handoff (include KPI delta)
+
 Commit Message Format:
   <type>: <description>
   
@@ -38,6 +41,91 @@ Commit Message Format:
 **Important:** Use ASCII characters only in commit messages (no Unicode/emoji).
   ✅ [PASS], [OK], [DONE], [FAIL]
   ❌ ✓, ✗, �	 (causes PowerShell encoding errors)
+```
+
+---
+
+## 📊 Live Directive Compliance KPI (Session-Level)
+
+Use a live compliance score throughout every working session to make adherence observable and auditable in real time.
+
+### KPI Score Model
+
+**Score format:** `X/6 green`
+
+- **Green** = Requirement satisfied and evidenced in this session
+- **Yellow** = Not yet applicable or pending the relevant step
+- **Red** = Violated; must be flagged and corrected before continuing
+
+### Required KPI Checklist (Track Live)
+
+1. **Track directive compliance live**
+2. **Verify venv before Python actions** (Principle 0)
+3. **Confirm baseline tests pass clean** (Principle 1)
+4. **Require post-change tests clean** (Principle 1)
+5. **Enforce UI manual smoke checks** for UI changes (Principle 5)
+6. **Record compliance status in updates**
+
+### Session Reporting Protocol
+
+- Report the KPI score in progress updates and handoffs
+- Update checklist state immediately after each meaningful action
+- If any item turns **Red**, stop new implementation work, fix the issue, then resume
+- If an item is **Yellow**, state what trigger/action will move it to **Green**
+
+### Checkpoint Cadence Rule (Mandatory)
+
+Append an entry to `session_log.md` at the following minimum cadence:
+
+1. **Session Start** - before implementation begins
+2. **Environment/Test Gate** - after venv verification and baseline test run
+3. **Each Major Implementation Cycle** - after meaningful code changes and their verification
+4. **Every Test Execution** - when running targeted tests or full suite tests
+5. **Any State Change to Red** - immediately when a violation is detected, plus correction outcome
+6. **Session Handoff/Close** - final status and next steps
+
+**Checkpoint metadata required per entry:**
+- Checkpoint type (start, test, implementation, risk, handoff)
+- Trigger event (what caused this entry)
+- KPI delta (what changed since prior entry)
+
+**Guideline:** prefer more frequent short entries over infrequent large summaries.
+
+### Session Log File Requirement (Per Project)
+
+Every project must maintain a dedicated session log file at repository root:
+
+- **Required file:** `session_log.md`
+- **Created when:** project initialization (or first work session if missing)
+- **Updated when:** at session start, after major checkpoints, and at handoff/close
+
+**Minimum entry fields:**
+
+1. Date and session identifier
+2. Directive Compliance KPI score (`X/6 green`)
+3. Green/Yellow/Red breakdown with reasons
+4. Checkpoint type and trigger event
+5. KPI delta since previous entry
+6. Actions completed since last entry
+7. Risks, blockers, or corrective actions
+8. Next planned steps
+
+**Bootstrap instructions for new projects:**
+
+1. Create `session_log.md` at repo root
+2. Add a reusable entry template with KPI checklist fields
+3. Add first baseline entry before implementation begins
+4. Continue appending entries chronologically (newest at bottom)
+
+**Rule:** if a session performs work and `session_log.md` is not updated, session compliance is incomplete.
+
+### Example Status Update
+
+```markdown
+Directive Compliance KPI: 4/6 green
+- Green: #1, #2, #3, #6
+- Yellow: #4 (awaiting post-change test run), #5 (no UI change yet)
+- Red: none
 ```
 
 ---
