@@ -304,3 +304,116 @@ Next Steps:
 - Test AI agenda generation endpoint with real OpenAI key
 - If clean, update KPI to 6/6 green and prepare commit
 - Commit message: "feat: add Steps 1-2 pre-meeting planning (objective + AI agenda)"
+
+---
+
+## Session: 2026-02-20 / checkpoint-phase2-integration-and-regression
+
+Checkpoint Type: implementation
+Trigger Event: Completed Phase 2 integration changes and executed full regression suite
+
+Directive Compliance KPI: 5/6 green
+- Green: #1, #2, #3, #4, #6
+- Yellow: none
+- Red: #5 (UI changes in `templates/edit.html` pending manual smoke test + browser console verification)
+
+KPI Delta Since Previous Entry:
+- Scope advanced from Steps 1-2 to Phase 2 integration (objective/agenda carry-forward)
+- Test gate reconfirmed: post-change suite passing
+- UI manual verification requirement remains open and blocks full 6/6 closure
+
+Checklist Status:
+1. Track directive compliance live
+2. Verify venv before Python actions (Principle 0)
+3. Confirm baseline tests pass clean (Principle 1)
+4. Require post-change tests clean (Principle 1)
+5. Enforce UI manual smoke checks for UI changes (Principle 5) [RED - pending]
+6. Record compliance status in updates
+
+Completed Actions:
+- Implemented Phase 2 integration:
+  - `/generate` now passes pre-meeting objective and agenda context into LLM extraction
+  - `/edit` pre-populates objective from `meeting_objective` when appropriate
+  - `edit.html` includes read-only agenda reference panel
+  - `mom_to_text()` includes agenda section when agenda data exists
+- Ran full test suite after changes: `169 passed`.
+
+Risks / Blockers / Corrections:
+- Blocker: UI change compliance is incomplete until manual smoke testing and console-error check are completed.
+
+Next Steps:
+- Run manual UI smoke test for full planned workflow and direct workflow.
+- Check browser console (F12) across edited pages.
+- On pass, append closure entry and mark KPI 6/6 green.
+
+---
+
+## Session: 2026-02-20 / checkpoint-phase2-commit-and-push
+
+Checkpoint Type: handoff
+Trigger Event: Phase 2 changes committed and pushed to `main` before UI smoke verification evidence was logged
+
+Directive Compliance KPI: 5/6 green
+- Green: #1, #2, #3, #4, #6
+- Yellow: none
+- Red: #5 (manual UI smoke test evidence pending)
+
+KPI Delta Since Previous Entry:
+- Operational state moved to deployed/remote (`main` updated)
+- Compliance gap unchanged: UI manual verification still pending evidence
+
+Checklist Status:
+1. Track directive compliance live
+2. Verify venv before Python actions (Principle 0)
+3. Confirm baseline tests pass clean (Principle 1)
+4. Require post-change tests clean (Principle 1)
+5. Enforce UI manual smoke checks for UI changes (Principle 5) [RED - pending]
+6. Record compliance status in updates
+
+Completed Actions:
+- Committed Phase 2 work and README updates.
+- Pushed commit `c40306d` to `origin/main`.
+
+Risks / Blockers / Corrections:
+- Risk: Process compliance not fully closed due missing UI smoke evidence in log.
+- Correction in progress: capture UI smoke results and append closure checkpoint.
+
+Next Steps:
+- Partner with user to execute manual smoke test later.
+- Append final closure entry once smoke test passes.
+
+---
+
+## Session: 2026-02-20 / checkpoint-compliance-remediation-pre-smoke
+
+Checkpoint Type: risk
+Trigger Event: Compliance audit request and remediation of missing evidence
+
+Directive Compliance KPI: 5/6 green
+- Green: #1, #2, #3, #4, #6
+- Yellow: none
+- Red: #5 (awaiting user-assisted manual UI smoke test)
+
+KPI Delta Since Previous Entry:
+- Added explicit retrospective audit trail for Phase 2 implementation and release checkpoints
+- Closed venv evidence gap by verifying interpreter path to project venv
+- Remaining single open gate is UI manual smoke verification
+
+Checklist Status:
+1. Track directive compliance live
+2. Verify venv before Python actions (Principle 0)
+3. Confirm baseline tests pass clean (Principle 1)
+4. Require post-change tests clean (Principle 1)
+5. Enforce UI manual smoke checks for UI changes (Principle 5) [RED - pending]
+6. Record compliance status in updates
+
+Completed Actions:
+- Verified active interpreter: `...\clearmeet\Scripts\python.exe`.
+- Logged missing Phase 2 compliance checkpoints with KPI deltas.
+
+Risks / Blockers / Corrections:
+- Final compliance closure is blocked until manual UI smoke test is completed and recorded.
+
+Next Steps:
+- Execute UI smoke checklist with user.
+- Append closure entry marking KPI 6/6 green once successful.
