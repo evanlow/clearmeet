@@ -579,3 +579,43 @@ Risks / Blockers / Corrections:
 
 Next Steps:
 - Commit all changes with directive-compliant message format
+
+---
+
+## Session: 2026-02-21 / validate-checklist-wording-update
+
+Checkpoint Type: implementation
+Trigger Event: Updated validation checklist heading text per user requirement
+
+Directive Compliance KPI: 6/6 green
+- Green: #1, #2, #3, #4, #5, #6
+- Yellow: none
+- Red: none
+
+KPI Delta Since Previous Entry:
+- No score change (remains 6/6 green)
+
+Checklist Status:
+1. Track directive compliance live
+2. Verify venv before Python actions (Principle 0)
+3. Confirm baseline tests pass clean (Principle 1)
+4. Require post-change tests clean (Principle 1)
+5. Enforce UI manual smoke checks for UI changes (Principle 5)
+6. Record compliance status in updates
+
+Completed Actions:
+- Updated validation checklist subheading text in templates/validate.html
+  - Changed from: "All required items must be checked before export"
+  - Changed to: "I confirm that I have reviewed and verified the following before export."
+- Ran full test suite: **171/171 passed in 34.26s, 0 warnings**
+- User confirmed UI change looks good
+
+Files Modified:
+- `templates/validate.html`: Updated card-header paragraph text
+- `session_log.md`: Appended this checkpoint
+
+Risks / Blockers / Corrections:
+- No active blockers
+
+Next Steps:
+- Commit change with directive-compliant message format
