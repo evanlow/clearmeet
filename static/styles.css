@@ -79,6 +79,10 @@ body {
     margin-bottom: 1.5rem;
 }
 
+.validate-back-link {
+    margin-bottom: 0.75rem;
+}
+
 .page-header h2 {
     font-size: 1.8rem;
     font-weight: 600;

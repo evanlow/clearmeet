@@ -3,6 +3,10 @@
 {% block title %}ClearMeet - Validate MOM{% endblock %}
 
 {% block content %}
+{% if content_issues %}
+<p class="validate-back-link"><a href="{{ url_for('edit') }}" class="btn btn-secondary">← Go Back to Edit</a></p>
+{% endif %}
+
 <div class="page-header">
     <h2>Validate Minutes of Meeting</h2>
     <p>Complete the validation checklist before exporting to PDF.</p>
@@ -18,7 +22,6 @@
         <li>{{ issue }}</li>
         {% endfor %}
     </ul>
-    <p><a href="{{ url_for('edit') }}" class="btn btn-secondary">← Go Back to Edit</a></p>
 </div>
 {% endif %}
 

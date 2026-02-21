@@ -274,6 +274,7 @@ class TestUpdateRoute:
                 'action_owner_0': 'Alice',
                 'action_deadline_0': '2026-03-01',
                 'action_status_0': 'Open',
+                'text_override': 'true',
                 'mom_text': 'Updated full text override content that is sufficiently long.'
             }, follow_redirects=False)
 

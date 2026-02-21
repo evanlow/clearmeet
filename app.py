@@ -709,12 +709,14 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             # Validate structured model if possible (MVP keeps structure unchanged on text edits)
             typed_mom = validate_mom_dict(mom_data)
 
-            # Update text editor override if provided, otherwise render from structure
+            # Update text editor override only when explicitly requested
+            text_override = request.form.get('text_override', 'false').lower() == 'true'
+            use_text_override = request.form.get('use_text_override', 'false').lower() == 'true'
             edited_text = _sanitize_text(request.form.get('mom_text_override', ''), max_len=100000)
             if not edited_text:
                 edited_text = _sanitize_text(request.form.get('mom_text', ''), max_len=100000)
 
-            if edited_text:
+            if (text_override or use_text_override or bool(request.form.get('mom_text_override', '').strip())) and edited_text:
                 typed_mom = apply_user_edits(typed_mom, edited_text)
                 mom_text_preview, mom_text_path = _persist_mom_text(edited_text)
                 session['mom_text'] = mom_text_preview
