@@ -142,17 +142,19 @@ def mom_to_text(mom: MeetingMOM, agenda_items: Optional[list[dict]] = None) -> s
     lines.append("Action Items:")
     lines.extend(format_action_items(mom.action_items))
 
-    lines.append("")
-    lines.append("Parking Lot:")
+    # Only include Parking Lot section if there are items
     if parking_lot:
+        lines.append("")
+        lines.append("Parking Lot:")
         for index, item in enumerate(parking_lot, start=1):
             lines.append(f"  {index}. {item}")
-    else:
-        lines.append("  None")
 
-    lines.append("")
-    lines.append("Notes:")
-    lines.append(f"  {mom.notes if mom.notes else 'None'}")
+    # Only include Notes section if there is content
+    if mom.notes:
+        lines.append("")
+        lines.append("Notes:")
+        lines.append(f"  {mom.notes}")
+
     lines.append("")
 
     audit_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")

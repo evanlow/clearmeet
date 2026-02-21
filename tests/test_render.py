@@ -39,8 +39,8 @@ def test_mom_to_text_includes_required_headings():
     assert "Attendees:" in text
     assert "Key Decisions:" in text
     assert "Action Items:" in text
-    assert "Parking Lot:" in text
-    assert "Notes:" in text
+    assert "Parking Lot:" in text  # Sample MOM has parking_lot
+    assert "Notes:" in text  # Sample MOM has notes
     assert "Audit:" in text
 
 
@@ -71,3 +71,39 @@ def test_apply_user_edits_keeps_structured_unchanged_for_mvp():
     result = apply_user_edits(structured, edited_text)
 
     assert result.model_dump() == structured.model_dump()
+
+
+def test_mom_to_text_omits_empty_parking_lot():
+    """Test that Parking Lot section is omitted when empty."""
+    mom = _sample_mom()
+    mom.parking_lot = None
+    
+    text = mom_to_text(mom)
+    
+    assert "Parking Lot:" not in text
+    assert "Notes:" in text  # Notes should still be present
+
+
+def test_mom_to_text_omits_empty_notes():
+    """Test that Notes section is omitted when empty."""
+    mom = _sample_mom()
+    mom.notes = None
+    
+    text = mom_to_text(mom)
+    
+    assert "Parking Lot:" in text  # Parking Lot should still be present
+    assert "Notes:" not in text
+
+
+def test_mom_to_text_omits_both_when_empty():
+    """Test that both Parking Lot and Notes sections are omitted when empty."""
+    mom = _sample_mom()
+    mom.parking_lot = None
+    mom.notes = None
+    
+    text = mom_to_text(mom)
+    
+    assert "Parking Lot:" not in text
+    assert "Notes:" not in text
+    assert "Action Items:" in text  # Should still have required sections
+    assert "Audit:" in text

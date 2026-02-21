@@ -619,3 +619,58 @@ Risks / Blockers / Corrections:
 
 Next Steps:
 - Commit change with directive-compliant message format
+
+---
+
+## Session: 2026-02-21 / conditional-parking-lot-notes-pdf-export
+
+Checkpoint Type: implementation
+Trigger Event: Made Parking Lot and Notes sections conditional in PDF export - only included when non-empty
+
+Directive Compliance KPI: 6/6 green
+- Green: #1, #2, #3, #4, #5, #6
+- Yellow: none
+- Red: none
+
+KPI Delta Since Previous Entry:
+- No score change (remains 6/6 green)
+- Added 3 new tests for conditional rendering
+
+Checklist Status:
+1. Track directive compliance live
+2. Verify venv before Python actions (Principle 0)
+3. Confirm baseline tests pass clean (Principle 1)
+4. Require post-change tests clean (Principle 1)
+5. Enforce UI manual smoke checks for UI changes (Principle 5)
+6. Record compliance status in updates
+
+Completed Actions:
+- Modified `mom_to_text()` in core/render.py to conditionally include sections
+  - Parking Lot section now only appears if parking_lot list is non-empty
+  - Notes section now only appears if notes field is non-empty
+  - Removed "None" placeholder text for empty sections
+- Added 3 new test cases to tests/test_render.py:
+  - test_mom_to_text_omits_empty_parking_lot
+  - test_mom_to_text_omits_empty_notes
+  - test_mom_to_text_omits_both_when_empty
+- Updated test comment to clarify existing test expectations
+- Verified Python venv: `C:\Users\evanl\Documents\development workspace\clearmeet\Scripts\python.exe`
+- Ran render tests individually: **7/7 passed**
+- Ran full test suite: **174/174 passed in 30.90s, 0 warnings**
+
+Files Modified:
+- `core/render.py`: Made Parking Lot and Notes sections conditional
+- `tests/test_render.py`: Added 3 new tests and updated comment
+- `session_log.md`: Appended this checkpoint
+
+Implementation Details:
+- Empty sections are now completely omitted from generated MOM text
+- This affects all PDF exports via the mom_to_text() rendering pipeline
+- Backward compatible - sections still appear when they have content
+- Cleaner PDF output for meetings without parking lot items or additional notes
+
+Risks / Blockers / Corrections:
+- No active blockers
+
+Next Steps:
+- Commit changes with directive-compliant message format
