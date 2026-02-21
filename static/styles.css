@@ -205,7 +205,7 @@ body {
 
 .action-item {
     display: grid;
-    grid-template-columns: 2fr 1.2fr 1fr auto;
+    grid-template-columns: 2fr 1.2fr 2fr auto;
     gap: 0.75rem;
     align-items: center;
     margin-bottom: 0.75rem;
@@ -336,20 +336,18 @@ body {
 
 .deadline-input-group {
     display: flex;
+    flex-direction: column;
     gap: 0.5rem;
-    align-items: center;
 }
 
 .deadline-input-group .deadline-picker {
-    flex: 0 0 auto;
-    min-width: 120px;
+    width: 100%;
     padding: 0.5rem;
     cursor: pointer;
 }
 
 .deadline-input-group .deadline-text {
-    flex: 1 1 auto;
-    min-width: 0;
+    width: 100%;
 }
 
 @media (max-width: 768px) {

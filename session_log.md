@@ -417,3 +417,70 @@ Risks / Blockers / Corrections:
 Next Steps:
 - Execute UI smoke checklist with user.
 - Append closure entry marking KPI 6/6 green once successful.
+---
+
+## Session: 2026-02-21 / 7-step-workflow-and-structured-editor-completion
+
+Checkpoint Type: implementation
+Trigger Event: Completed 7-step workflow implementation and full structured editor coverage per user requirements
+
+Directive Compliance KPI: 6/6 green
+- Green: #1, #2, #3, #4, #5, #6
+- Yellow: none
+- Red: none
+
+KPI Delta Since Previous Entry:
+- KPI changed from 5/6 green (1 red) -> 6/6 green (0 red)
+- All UI changes manually verified and browser console clean
+- Full release-readiness gate cleared
+
+Checklist Status:
+1. Track directive compliance live
+2. Verify venv before Python actions (Principle 0)
+3. Confirm baseline tests pass clean (Principle 1)
+4. Require post-change tests clean (Principle 1)
+5. Enforce UI manual smoke checks for UI changes (Principle 5)
+6. Record compliance status in updates
+
+Completed Actions:
+- Implemented 7-step workflow breadcrumbs across all pages (`templates/base.html`)
+  - Changed from 4-step to: 1. Objective > 2. Agenda > 3. Meeting > 4. Transcript > 5. AI Generate > 6. Validate > 7. Export
+- Added state-aware index page with agenda completion tracking (`templates/index.html`)
+  - save_agenda route now sets `session['agenda_completed'] = True` and redirects with `agenda_saved=true` parameter
+  - Index conditionally displays "Meeting Plan Ready" status card when agenda exists in session
+- Simplified deadline input UX in edit page (`templates/edit.html`)
+  - Changed from dual-field (date picker + text input) to single date picker (type="date")
+  - Grid layout adjusted: deadline column widened from 1fr to 2fr (`static/styles.css`)
+- Added complete structured editor coverage (`templates/edit.html`)
+  - Added Parking Lot text input field (comma-separated)
+  - Added Notes textarea field
+  - All MOM data now editable in left panel without requiring right panel text editor
+- Extended route test coverage (`tests/test_routes.py`)
+  - Added TestAgendaWorkflow class with 2 new tests
+  - test_save_agenda_redirects_with_flag
+  - test_index_shows_agenda_status_when_present
+- Verified Python venv: `clearmeet/Scripts/python.exe`
+- Ran full regression suite: **25/25 tests passed in 1.29s, 0 warnings**
+- User completed manual UI smoke test: **all checkpoints passed, browser console clean**
+
+Files Modified:
+- `templates/base.html`: Updated breadcrumbs (lines 15-23)
+- `app.py`: Added agenda completion flag and redirect logic (lines 276, 282)
+- `templates/index.html`: Complete rewrite for state-aware UI (lines 8-56)
+- `templates/edit.html`: Simplified deadline input, added Notes/Parking Lot fields (lines 131-141, 145-163)
+- `static/styles.css`: Widened deadline column in action-item grid (line 207)
+- `tests/test_routes.py`: Added TestAgendaWorkflow class (lines 453-490)
+
+Implementation Details:
+- Session-based state management for workflow progression tracking
+- Backward compatible: direct transcript → MOM workflow preserved
+- User-acknowledged sync limitation: left/right panel edits don't sync until form submission (real-time sync deferred to future sprint)
+- Right panel kept temporarily for usability testing, planned removal after next sprint evaluation
+- All backend form handlers (parking_lot, notes) already existed in app.py, only UI exposure needed
+
+Risks / Blockers / Corrections:
+- No active blockers or compliance violations
+
+Next Steps:
+- Commit changes with proper directive-compliant message format
+- Continue normal development workflow with 6/6 green baseline

@@ -274,12 +274,13 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             
             # Store in session
             session['agenda_items'] = AgendaBuilder.serialize_agenda(agenda_items)
+            session['agenda_completed'] = True
             session.modified = True
             
             logger.info(f"Agenda saved: {len(agenda_items)} items, {AgendaBuilder.calculate_total_duration(agenda_items)} min total")
             return jsonify({
                 "success": True,
-                "redirect_url": url_for('index')
+                "redirect_url": url_for('index', agenda_saved='true')
             })
             
         except Exception as e:

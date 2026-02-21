@@ -8,7 +8,32 @@
     <p>Start with structured meeting planning or generate MOM from transcript.</p>
 </div>
 
+<!-- Agenda Completion Notice (Step 3 readiness) -->
+{% if request.args.get('agenda_saved') == 'true' %}
+<div class="alert alert-success" style="margin-bottom: 2rem;">
+    ✓ <strong>Agenda Saved!</strong> Your meeting plan is ready. Now conduct your live meeting (Step 3), then return here to capture transcript and generate MOM (Steps 4-5).
+</div>
+{% endif %}
+
+<!-- Session Agenda Status -->
+{% if session.get('agenda_items') %}
+<div class="card" style="margin-bottom: 2rem; border-left: 4px solid #28a745;">
+    <div class="card-header" style="background: #f8f9fa;">
+        <h3 style="margin: 0; color: #28a745;">📋 Meeting Plan Ready (Steps 1-2 Complete)</h3>
+    </div>
+    <div style="padding: 1.5rem;">
+        <p><strong>Agenda:</strong> {{ session.get('agenda_items')|length }} items, {{ session.get('agenda_items')|map(attribute='duration_minutes')|sum }} minutes total</p>
+        <p style="margin-bottom: 1rem;">You've completed objective definition and agenda planning. Ready to proceed!</p>
+        <div style="display: flex; gap: 1rem;">
+            <a href="#transcript-section" class="btn btn-primary workflow-scroll-btn">Continue to Transcript Input (Step 4) →</a>
+            <a href="{{ url_for('build_agenda') }}" class="btn btn-secondary">Edit Agenda</a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- Workflow Options -->
+{% if not session.get('agenda_items') %}
 <div class="workflow-options">
     <div class="workflow-card">
         <div class="workflow-icon">📋</div>
@@ -28,6 +53,13 @@
         <a href="#transcript-section" class="btn btn-secondary workflow-scroll-btn">Go to Transcript Input</a>
     </div>
 </div>
+{% else %}
+<div style="margin-bottom: 2rem; padding: 1rem; background: #e9ecef; border-radius: 8px;">
+    <p style="margin: 0; font-size: 0.95rem; color: #495057;">
+        <strong>Starting a new meeting plan?</strong> <a href="{{ url_for('define_objective') }}" style="color: #007bff;">Define New Objective & Agenda</a>
+    </p>
+</div>
+{% endif %}
 
 <!-- Transcript/Audio Input Section -->
 <div class="card" id="transcript-section">

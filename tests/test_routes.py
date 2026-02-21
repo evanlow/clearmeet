@@ -450,3 +450,50 @@ class TestErrorHandlers:
         assert response.status_code == 302
         assert '/' in response.location
 
+
+class TestAgendaWorkflow:
+    """Tests for pre-meeting agenda workflow (Steps 1-2)."""
+    
+    @patch('app.AgendaBuilder.generate_agenda_with_ai')
+    def test_save_agenda_redirects_with_flag(self, mock_generate, client):
+        """Test that saving agenda redirects to index with agenda_saved flag."""
+        with client.session_transaction() as sess:
+            sess['meeting_objective'] = {
+                'business_issue': 'Test issue',
+                'objective': 'Test objective',
+                'expected_output': 'Test output'
+            }
+        
+        with client:
+            response = client.post('/meeting/agenda/save',
+                json={
+                    'items': [
+                        {'title': 'Item 1', 'duration_minutes': 15, 'description': ''},
+                        {'title': 'Item 2', 'duration_minutes': 20, 'description': 'Test'}
+                    ]
+                },
+                content_type='application/json',
+                follow_redirects=False
+            )
+            
+            data = json.loads(response.data)
+            assert response.status_code == 200
+            assert data['success'] is True
+            assert 'agenda_saved=true' in data['redirect_url']
+            
+            from flask import session
+            assert session['agenda_completed'] is True
+            assert len(session['agenda_items']) == 2
+    
+    def test_index_shows_agenda_status_when_present(self, client):
+        """Test that index page displays agenda status when session has agenda_items."""
+        with client.session_transaction() as sess:
+            sess['agenda_items'] = [
+                {'title': 'Intro', 'duration_minutes': 10, 'description': ''},
+                {'title': 'Review', 'duration_minutes': 20, 'description': ''}
+            ]
+        
+        response = client.get('/')
+        assert response.status_code == 200
+        assert b'Meeting Plan Ready' in response.data
+        assert b'2 items' in response.data or b'30 minutes' in response.data
