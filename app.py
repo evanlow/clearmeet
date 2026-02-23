@@ -700,6 +700,15 @@ def create_app(config_name: Optional[str] = None) -> Flask:
                 mom_data['title'] = _sanitize_text(request.form.get('title', ''))
             if 'date' in request.form:
                 mom_data['date'] = _sanitize_text(request.form.get('date', ''))
+            if 'start_time' in request.form:
+                start_time = _sanitize_text(request.form.get('start_time', ''))
+                mom_data['start_time'] = start_time if start_time else None
+            if 'end_time' in request.form:
+                end_time = _sanitize_text(request.form.get('end_time', ''))
+                mom_data['end_time'] = end_time if end_time else None
+            if 'venue' in request.form:
+                venue = _sanitize_text(request.form.get('venue', ''))
+                mom_data['venue'] = venue if venue else None
             if 'objective' in request.form:
                 mom_data['objective'] = _sanitize_text(request.form.get('objective', ''))
 

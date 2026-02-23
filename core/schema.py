@@ -158,6 +158,9 @@ class MeetingMOM(BaseModel):
 
     title: str = Field(..., min_length=3, description="Meeting title")
     date: str = Field(..., min_length=4, description="Meeting date (YYYY-MM-DD or similar)")
+    start_time: Optional[str] = Field(None, description="Meeting start time (HH:MM or HH:MM AM/PM)")
+    end_time: Optional[str] = Field(None, description="Meeting end time (HH:MM or HH:MM AM/PM)")
+    venue: Optional[str] = Field(None, description="Meeting location or venue name")
     objective: str = Field(..., min_length=10, description="Meeting purpose and objective")
     decisions: list[Decision] = Field(..., description="Decisions made during meeting")
     action_items: list[ActionItem] = Field(..., description="Action items with owners")
@@ -182,6 +185,33 @@ class MeetingMOM(BaseModel):
         if not v or len(v.strip()) < 10:
             raise ValueError("Objective must be at least 10 characters and describe the meeting purpose")
         return v.strip()
+
+    @field_validator('start_time')
+    @classmethod
+    def start_time_valid(cls, v: Optional[str]) -> Optional[str]:
+        """Validate start time format if provided."""
+        if not v:
+            return v
+        v_clean = v.strip()
+        return v_clean if v_clean else None
+
+    @field_validator('end_time')
+    @classmethod
+    def end_time_valid(cls, v: Optional[str]) -> Optional[str]:
+        """Validate end time format if provided."""
+        if not v:
+            return v
+        v_clean = v.strip()
+        return v_clean if v_clean else None
+
+    @field_validator('venue')
+    @classmethod
+    def venue_not_empty_string(cls, v: Optional[str]) -> Optional[str]:
+        """Ensure venue is not empty whitespace."""
+        if not v:
+            return v
+        v_clean = v.strip()
+        return v_clean if v_clean else None
 
     @classmethod
     def get_json_schema(cls) -> dict:

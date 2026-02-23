@@ -52,6 +52,42 @@
             </div>
 
             <div class="form-group">
+                <label for="start_time">Start Time (optional)</label>
+                <input
+                    type="time"
+                    name="start_time"
+                    id="start_time"
+                    class="form-control"
+                    value="{{ mom_data.start_time or '' }}"
+                >
+                <small class="form-text">Format: HH:MM (24-hour)</small>
+            </div>
+
+            <div class="form-group">
+                <label for="end_time">End Time (optional)</label>
+                <input
+                    type="time"
+                    name="end_time"
+                    id="end_time"
+                    class="form-control"
+                    value="{{ mom_data.end_time or '' }}"
+                >
+                <small class="form-text">Format: HH:MM (24-hour)</small>
+            </div>
+
+            <div class="form-group">
+                <label for="venue">Venue/Location (optional)</label>
+                <input
+                    type="text"
+                    name="venue"
+                    id="venue"
+                    class="form-control"
+                    placeholder="e.g., Conference Room A, Virtual (Zoom), etc."
+                    value="{{ mom_data.venue or '' }}"
+                >
+            </div>
+
+            <div class="form-group">
                 <label for="attendees">Attendees (comma-separated)</label>
                 <input
                     type="text"

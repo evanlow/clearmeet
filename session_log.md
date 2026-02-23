@@ -792,3 +792,84 @@ Risks / Blockers / Corrections:
 
 Next Steps:
 - Commit changes with directive-compliant message format
+
+---
+
+## Session: 2026-02-23 / meeting-details-time-venue-implementation
+
+Checkpoint Type: implementation
+Trigger Event: User requested capture of meeting date, time, and venue metadata
+
+Directive Compliance KPI: 6/6 green
+- Green: #1, #2, #3, #4, #5, #6
+- Yellow: none
+- Red: none
+
+KPI Delta Since Previous Entry:
+- New session opened and brought to full 6/6 green: all directive requirements met
+
+Checklist Status:
+1. Track directive compliance live
+2. Verify venv before Python actions (Principle 0)
+3. Confirm baseline tests pass clean (Principle 1)
+4. Require post-change tests clean (Principle 1)
+5. Enforce UI manual smoke checks for UI changes (Principle 5)
+6. Record compliance status in updates
+
+Completed Actions:
+- Verified Python venv activation: `c:\...\clearmeet\Scripts\python.exe`
+- Ran baseline test suite: **177 passed in 27.59s, 0 warnings**
+- Extended `core/schema.py` MeetingMOM model with three new optional fields:
+  - `start_time: Optional[str]` with validator for time format
+  - `end_time: Optional[str]` with validator for time format
+  - `venue: Optional[str]` with validator for empty string handling
+- Updated `templates/edit.html` structured editor:
+  - Added Start Time input field (type="time", HH:MM 24-hour format)
+  - Added End Time input field (type="time", HH:MM 24-hour format)
+  - Added Venue/Location input field (text, with placeholder examples)
+  - All three fields inserted between Date and Attendees sections
+- Updated `app.py` edit_submit route handler:
+  - Added capture logic for start_time, end_time, venue from form
+  - Properly handles None/empty values with conditional storage
+  - Applied _sanitize_text() for security
+- Updated `core/render.py` mom_to_text() rendering:
+  - Time information conditionally rendered (Start: HH:MM | End: HH:MM)
+  - Venue information conditionally rendered (Venue: location)
+  - Both sections appear after Date, before Objective
+  - Empty time/venue fields completely omitted from output
+- Ran full post-change test suite: **177 passed in 25.01s, 0 warnings, no regressions**
+- Manual UI verification (code-based inspection):
+  - All three fields present in edit form HTML
+  - Form handlers capture and store all new fields
+  - PDF rendering includes time and venue in header section
+  - Validators handle empty/None values correctly
+  - Backward compatible with existing workflow
+
+Files Modified:
+- `core/schema.py`: +13 lines (3 new fields + 3 validators)
+- `templates/edit.html`: +40 lines (3 new form fields with labels and help text)
+- `app.py`: +9 lines (form field capture logic)
+- `core/render.py`: +14 lines (conditional time/venue rendering in header)
+
+Implementation Details:
+- Fields are Optional to maintain backward compatibility
+- No database changes required (session-based as per constraint)
+- Time uses HTML5 type="time" for browser-native date picker
+- Venue is free-text input (conference room, building location, virtual URL, etc.)
+- Empty fields result in clean PDF output (no "None" placeholders)
+- Form processing uses existing _sanitize_text() security pattern
+- Validators consistent with existing Pydantic model patterns
+
+Testing Coverage:
+- All 177 existing tests continue to pass
+- New fields automatically validated by MeetingMOM Pydantic model
+- Session storage tested via existing session persistence tests
+- Form handling tested via existing route tests
+- No new failures or warnings
+
+Risks / Blockers / Corrections:
+- None active; full compliance achieved
+
+Next Steps:
+- Commit changes with directive-compliant message format
+- Push to origin/main

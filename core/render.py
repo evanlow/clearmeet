@@ -104,12 +104,27 @@ def mom_to_text(mom: MeetingMOM, agenda_items: Optional[list[dict]] = None) -> s
         "=" * 72,
         f"Title: {mom.title}",
         f"Date: {mom.date}",
-        "",
-        "Objective:",
-        f"  {mom.objective}",
-        "",
-        "Attendees:",
     ]
+
+    # Add time information if available
+    if mom.start_time or mom.end_time:
+        time_info = ""
+        if mom.start_time:
+            time_info = f"Start: {mom.start_time}"
+        if mom.end_time:
+            if time_info:
+                time_info += f" | End: {mom.end_time}"
+            else:
+                time_info = f"End: {mom.end_time}"
+        if time_info:
+            lines.append(time_info)
+
+    # Add venue if available
+    if mom.venue:
+        lines.append(f"Venue: {mom.venue}")
+
+    lines.extend(["", "Objective:", f"  {mom.objective}", ""])
+    lines.append("Attendees:")
 
     if attendees:
         for attendee in attendees:
