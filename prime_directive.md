@@ -24,6 +24,8 @@ For UI Changes (HTML/CSS/JavaScript):
 □ Manual smoke test completed (Principle 5)
 □ Browser console checked (F12) - 0 errors
 □ Critical user flows tested
+□ Input validation: Frontend (UX) + Backend (Security) (Principle 7)
+□ Date/time inputs use proper controls (datetime-local or picker library)
 □ Manual testing documented in commit message
 → Ready to commit
 
@@ -53,7 +55,7 @@ Use a live compliance score throughout every working session to make adherence o
 
 ### KPI Score Model
 
-**Score format:** `X/6 green`
+**Score format:** `X/7 green`
 
 - **Green** = Requirement satisfied and evidenced in this session
 - **Yellow** = Not yet applicable or pending the relevant step
@@ -66,7 +68,8 @@ Use a live compliance score throughout every working session to make adherence o
 3. **Confirm baseline tests pass clean** (Principle 1)
 4. **Require post-change tests clean** (Principle 1)
 5. **Enforce UI manual smoke checks** for UI changes (Principle 5)
-6. **Record compliance status in updates**
+6. **Validate input handling: Frontend (UX) + Backend (Security)** for form inputs (Principle 7)
+7. **Record compliance status in updates**
 
 ### Session Reporting Protocol
 
@@ -124,9 +127,9 @@ Every project must maintain a dedicated session log file at repository root:
 ### Example Status Update
 
 ```markdown
-Directive Compliance KPI: 4/6 green
-- Green: #1, #2, #3, #6
-- Yellow: #4 (awaiting post-change test run), #5 (no UI change yet)
+Directive Compliance KPI: 5/7 green
+- Green: #1, #2, #3, #5, #7
+- Yellow: #4 (awaiting post-change test run), #6 (no form input changes yet)
 - Red: none
 ```
 
@@ -536,6 +539,358 @@ Manual Testing: ✓
   - Word counter updates in real-time
   - Browser console: 0 errors
 ```
+
+### 7. **Enterprise Input Validation & Security Standards**
+**CRITICAL:** Never trust frontend validation alone. Always validate and sanitize on the backend.
+
+**The Golden Rules:**
+1. **Frontend validation = UX convenience** (instant feedback, prevent network calls)
+2. **Backend validation = Security boundary** (enforceable, cannot be bypassed)
+3. **Both are required** - frontend for UX, backend for security
+
+---
+
+#### **Date/Time Input Standards**
+
+**❌ NEVER: Plain text fields for time without backend normalization**
+```html
+<!-- BAD: Relies on user typing correct format -->
+<input type="text" name="start_time" placeholder="Enter time">
+```
+
+**❌ NEVER: HTML5 time input without backend conversion**
+```html
+<!-- BAD: Browser sends HH:MM but no timezone info -->
+<input type="time" name="start_time">
+<!-- Backend receives: "09:30" - but in what timezone? -->
+```
+
+**✅ ALWAYS: Use proper datetime controls with timezone handling**
+
+**Option 1: Modern JavaScript DateTime Picker (Recommended for Enterprise)**
+```html
+<!-- Use libraries that handle timezones properly -->
+<!-- Flatpickr, React DatePicker, MUI DateTimePicker, etc. -->
+<input id="meeting-time" type="text">
+<script>
+flatpickr("#meeting-time", {
+    enableTime: true,
+    dateFormat: "Y-m-d H:i",
+    time_24hr: true
+});
+</script>
+```
+
+**Option 2: HTML5 datetime-local (Acceptable for Internal Tools)**
+```html
+<!-- datetime-local includes date + time, no timezone -->
+<input type="datetime-local" name="meeting_time">
+<!-- Browser sends: "2026-02-23T09:30" -->
+```
+
+**Backend Processing (MANDATORY for all datetime inputs):**
+```python
+from datetime import datetime
+from zoneinfo import ZoneInfo  # Python 3.9+
+
+# ✅ GOOD: Convert to UTC, store as ISO 8601
+def process_meeting_time(user_input: str, user_timezone: str = "UTC") -> str:
+    """
+    Convert user's local datetime to UTC ISO 8601 format.
+    
+    Args:
+        user_input: "2026-02-23T09:30" or "2026-02-23 09:30"
+        user_timezone: "Asia/Singapore", "America/New_York", etc.
+    
+    Returns:
+        ISO 8601 UTC string: "2026-02-23T01:30:00Z"
+    """
+    # Parse input (handle multiple formats)
+    dt_naive = datetime.fromisoformat(user_input.replace(' ', 'T'))
+    
+    # Attach user's timezone
+    dt_aware = dt_naive.replace(tzinfo=ZoneInfo(user_timezone))
+    
+    # Convert to UTC
+    dt_utc = dt_aware.astimezone(ZoneInfo("UTC"))
+    
+    # Store as ISO 8601
+    return dt_utc.isoformat()
+
+# Example:
+# User in Singapore enters: "2026-02-23T09:30"
+# Backend stores: "2026-02-23T01:30:00Z" (UTC)
+# Display to user: "2026-02-23T09:30:00+08:00" (Singapore time)
+```
+
+**Database Storage Standards:**
+```sql
+-- ✅ ALWAYS: Store datetimes in UTC
+CREATE TABLE meetings (
+    id SERIAL PRIMARY KEY,
+    meeting_time TIMESTAMP WITH TIME ZONE NOT NULL,  -- PostgreSQL
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- ❌ NEVER: Store as local time without timezone
+CREATE TABLE meetings (
+    meeting_time TIMESTAMP,  -- Ambiguous! What timezone?
+    created_at DATETIME      -- SQLite/MySQL - no timezone info
+);
+```
+
+**Display to Users (Convert back to local time):**
+```python
+def display_meeting_time(utc_iso_string: str, user_timezone: str) -> str:
+    """
+    Convert stored UTC time back to user's local timezone.
+    
+    Args:
+        utc_iso_string: "2026-02-23T01:30:00Z"
+        user_timezone: "Asia/Singapore"
+    
+    Returns:
+        "2026-02-23 09:30 SGT"
+    """
+    dt_utc = datetime.fromisoformat(utc_iso_string.replace('Z', '+00:00'))
+    dt_local = dt_utc.astimezone(ZoneInfo(user_timezone))
+    return dt_local.strftime("%Y-%m-%d %H:%M %Z")
+```
+
+**Time Input Validation Rules:**
+1. **Frontend:** Provide picker UI (date + time together)
+2. **Backend:** Parse, validate, convert to UTC ISO 8601
+3. **Storage:** Always UTC with timezone marker (`TIMESTAMP WITH TIME ZONE`)
+4. **Display:** Convert from UTC to user's timezone
+
+**Acceptable Shortcuts for Internal/Small Tools:**
+- Use `datetime-local` input (not `time` alone)
+- Assume single timezone (e.g., company HQ timezone)
+- Store as ISO 8601 string: `YYYY-MM-DDTHH:MM:SS`
+- Document timezone assumption clearly
+
+**❌ NEVER Acceptable (Even for Internal Tools):**
+- Plain text `<input type="text">` for time without backend normalization
+- `<input type="time">` without date - time is meaningless without date
+- Storing time as "09:30" string - ambiguous format, no date context
+- Mixing 12-hour/24-hour formats without clear indicators
+
+---
+
+#### **General Input Validation Standards**
+
+**The Three-Layer Defense:**
+```
+Layer 1: Frontend (HTML5 + JavaScript)
+         ↓ (Can be bypassed - user can modify DOM/disable JS)
+Layer 2: Backend Validation (Python/Node/etc)
+         ↓ (Enforceable - server controls this)
+Layer 3: Database Constraints
+         ↓ (Last line of defense)
+```
+
+**HTML5 Client-Side Validation (UX Layer):**
+```html
+<!-- ✅ GOOD: Provides instant feedback -->
+<input 
+    type="email" 
+    name="email" 
+    required 
+    pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
+    title="Enter a valid email address"
+>
+
+<input 
+    type="number" 
+    name="age" 
+    min="0" 
+    max="120" 
+    required
+>
+
+<!-- Date input with min/max constraints -->
+<input 
+    type="date" 
+    name="meeting_date" 
+    min="2026-01-01" 
+    max="2026-12-31"
+    required
+>
+```
+
+**Backend Validation (Security Layer - REQUIRED):**
+```python
+from pydantic import BaseModel, Field, field_validator, EmailStr
+from datetime import datetime, date
+from typing import Optional
+
+class MeetingInput(BaseModel):
+    """Backend validation model - never trust frontend alone"""
+    
+    email: EmailStr  # Validates email format
+    age: int = Field(ge=0, le=120)  # Greater/equal 0, less/equal 120
+    meeting_date: date = Field(...)
+    meeting_time: datetime = Field(...)
+    description: str = Field(min_length=1, max_length=500)
+    
+    @field_validator('meeting_date')
+    @classmethod
+    def validate_date_not_past(cls, v: date) -> date:
+        """Meetings must be in the future"""
+        if v < date.today():
+            raise ValueError("Meeting date cannot be in the past")
+        return v
+    
+    @field_validator('description')
+    @classmethod
+    def sanitize_description(cls, v: str) -> str:
+        """Sanitize to prevent XSS"""
+        # Strip dangerous characters/tags
+        import html
+        return html.escape(v.strip())
+
+# Usage in Flask/FastAPI route:
+@app.post("/create-meeting")
+def create_meeting(data: MeetingInput):
+    # If we reach here, data is validated
+    # Pydantic raises 422 Unprocessable Entity if validation fails
+    return {"status": "success", "meeting": data.model_dump()}
+```
+
+**Database Constraints (Last Defense):**
+```sql
+-- PostgreSQL example
+CREATE TABLE meetings (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) NOT NULL CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'),
+    age INT CHECK (age >= 0 AND age <= 120),
+    meeting_date DATE NOT NULL CHECK (meeting_date >= CURRENT_DATE),
+    description TEXT NOT NULL CHECK (LENGTH(description) > 0 AND LENGTH(description) <= 500)
+);
+```
+
+---
+
+#### **Input Sanitization Standards**
+
+**XSS Prevention (Cross-Site Scripting):**
+```python
+import html
+from markupsafe import escape  # If using Flask/Jinja2
+
+# ✅ ALWAYS: Escape user input before displaying in HTML
+user_input = "<script>alert('XSS')</script>"
+safe_output = html.escape(user_input)
+# Result: "&lt;script&gt;alert('XSS')&lt;/script&gt;"
+
+# In templates (Jinja2/Flask auto-escapes by default)
+{{ user_input }}  # ✅ Auto-escaped
+{{ user_input | safe }}  # ❌ DANGEROUS - bypasses escaping
+```
+
+**SQL Injection Prevention:**
+```python
+# ❌ NEVER: String concatenation
+cursor.execute(f"SELECT * FROM users WHERE email = '{user_email}'")
+
+# ✅ ALWAYS: Parameterized queries
+cursor.execute("SELECT * FROM users WHERE email = %s", (user_email,))
+
+# ✅ ALWAYS: Use ORM (SQLAlchemy, Django ORM)
+User.query.filter_by(email=user_email).first()  # Auto-escaped
+```
+
+**File Upload Validation:**
+```python
+from werkzeug.utils import secure_filename
+import os
+
+ALLOWED_EXTENSIONS = {'pdf', 'docx', 'txt'}
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+
+def validate_file_upload(file):
+    """Validate uploaded file"""
+    # Check if file exists
+    if not file or file.filename == '':
+        raise ValueError("No file provided")
+    
+    # Secure the filename (remove path traversal attempts)
+    filename = secure_filename(file.filename)
+    
+    # Check extension
+    ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+    if ext not in ALLOWED_EXTENSIONS:
+        raise ValueError(f"File type .{ext} not allowed")
+    
+    # Check file size
+    file.seek(0, os.SEEK_END)
+    size = file.tell()
+    file.seek(0)  # Reset file pointer
+    if size > MAX_FILE_SIZE:
+        raise ValueError("File too large (max 10MB)")
+    
+    return filename
+```
+
+---
+
+#### **Enterprise DateTime Best Practices Summary**
+
+**For Production/Enterprise Systems:**
+1. ✅ Use modern datetime picker libraries (Flatpickr, MUI, etc.)
+2. ✅ Capture user's timezone (from browser or profile)
+3. ✅ Convert all times to UTC before storage
+4. ✅ Store as ISO 8601 with timezone: `2026-02-23T01:30:00Z`
+5. ✅ Use `TIMESTAMP WITH TIME ZONE` in database
+6. ✅ Convert back to user's timezone when displaying
+7. ✅ Handle daylight saving time transitions
+
+**For Internal Tools (Acceptable Shortcuts):**
+1. ✅ Use `<input type="datetime-local">` (includes date + time)
+2. ✅ Document assumed timezone clearly (e.g., "All times in UTC")
+3. ✅ Store as ISO 8601: `YYYY-MM-DDTHH:MM:SS`
+4. ⚠️ Validate format on backend even if frontend provides picker
+
+**❌ NEVER Acceptable:**
+1. ❌ `<input type="time">` alone without date
+2. ❌ Plain `<input type="text">` for time without backend normalization
+3. ❌ Storing times without date context (e.g., "09:30" string)
+4. ❌ Trusting frontend validation alone
+5. ❌ Storing times without timezone information
+
+---
+
+#### **Validation Checklist (Required for ALL form inputs)**
+
+**Frontend (UX Layer):**
+- [ ] Use appropriate HTML5 input types (`email`, `number`, `date`, `datetime-local`)
+- [ ] Add `required`, `min`, `max`, `pattern` attributes where applicable
+- [ ] Provide clear error messages with `title` attribute
+- [ ] Use datetime pickers for date/time inputs (not plain text)
+- [ ] JavaScript validation for complex rules (matching passwords, etc.)
+
+**Backend (Security Layer - MANDATORY):**
+- [ ] Use Pydantic/Marshmallow/dataclasses for validation models
+- [ ] Validate data types (int, str, email, date, etc.)
+- [ ] Validate ranges (min/max length, min/max value)
+- [ ] Validate formats (email regex, date format, etc.)
+- [ ] Sanitize all text inputs (escape HTML, strip dangerous chars)
+- [ ] Convert datetimes to UTC ISO 8601 before storage
+- [ ] Return clear error messages (400/422 with details)
+
+**Database (Last Defense):**
+- [ ] Add NOT NULL constraints where required
+- [ ] Add CHECK constraints for value ranges
+- [ ] Add UNIQUE constraints where applicable
+- [ ] Use proper column types (`TIMESTAMP WITH TIME ZONE`, `INTEGER`, etc.)
+- [ ] Add foreign key constraints for relationships
+
+**Testing:**
+- [ ] Test with valid inputs → success
+- [ ] Test with missing required fields → 400/422 error
+- [ ] Test with invalid formats → 400/422 error
+- [ ] Test with boundary values (min, max) → correct behavior
+- [ ] Test with malicious inputs (XSS, SQL injection attempts) → sanitized/blocked
 
 ---
 
