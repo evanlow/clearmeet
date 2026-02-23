@@ -178,6 +178,14 @@ def create_app(config_name: Optional[str] = None) -> Flask:
         logger.info("Objective definition page accessed")
         return render_template('define_objective.html')
     
+    @app.route('/meeting/clear', methods=['GET', 'POST'])
+    def clear_session():
+        """Clear current session and start a new meeting."""
+        session.clear()
+        logger.info("Session cleared, starting new meeting")
+        flash('Session cleared. Ready to start a new meeting!', 'success')
+        return redirect(url_for('index'))
+    
     @app.route('/meeting/define', methods=['POST'])
     def save_objective():
         """Save meeting objective to session and proceed to agenda builder (Step 1 → 2)."""
