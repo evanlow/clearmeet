@@ -1075,3 +1075,53 @@ Next Steps:
 - Verify datetime-local inputs display correctly
 - Verify form submission and validation work as expected
 - Verify PDF export shows clean time format
+
+---
+
+## Session: 2026-02-23 / date-redundancy-ux-fix
+
+Checkpoint Type: implementation
+Trigger Event: User feedback - "The start date/time makes the date duplicated!" - identifying UX issue requiring users to enter date 3 times
+
+Directive Compliance KPI: 7/7 green
+- Green: #1-7 (all requirements met for this implementation)
+
+Issue Identified:
+- Users forced to enter same date THREE times: Meeting Date field + Start DateTime + End DateTime
+- datetime-local control already includes date, making separate Meeting Date field redundant
+- Poor UX: enter "2026-03-05" in date field, then "2026-03-05T09:30" in start field, then "2026-03-05T11:00" in end field
+
+Completed Actions:
+- core/schema.py: Removed meeting_date field from MeetingObjective model
+- core/schema.py: Made start_time/end_time required fields (not Optional)
+- core/schema.py: Added validation requiring non-empty start_time/end_time
+- templates/define_objective.html: Removed Meeting Date input field (type=date)
+- templates/define_objective.html: Added required attribute to start/end datetime inputs
+- templates/define_objective.html: Updated labels with red asterisk (*) for required fields
+- templates/build_agenda.html: Extract date from start_time for display (split on T)
+- templates/build_agenda.html: Extract time portion from ISO 8601 for time display
+- app.py: Updated edit route to extract date from planned_objective.start_time
+- app.py: Updated PDF export metadata to extract date from mom_data.start_time
+- All tests passing: 177/177, 0 warnings, 0 regressions
+- Committed and pushed to origin/main (commit 4ab7c4e)
+
+Code Impact:
+- 4 files changed: 57 insertions(+), 74 deletions(-) (net reduction of 17 lines)
+- Simpler data model: 3 datetime fields ? 2 datetime fields (start_time, end_time)
+- Display logic: Extract date component from start_time where needed for UI/PDFs
+
+User Impact:
+- Before: Enter date 3 times (Meeting Date + Start DateTime + End DateTime)
+- After: Enter date once (Start DateTime includes date, auto-extracted for display)
+- Clear required indicators: Red asterisk (*) on Start Date & Time and End Date & Time
+- Venue remains optional (appropriate for virtual meetings)
+
+Implementation Approach:
+- Jinja2 template: {{ meeting_objective.start_time.split('T')[0] }} for date display
+- Python backend: start_time.split('T')[0] for date extraction in app.py
+- ISO 8601 format preserved: "2026-02-23T09:30" ? display "2026-02-23" for date, "09:30" for time
+
+Next Steps:
+- Manual UI verification recommended (form submission, display, PDF export)
+- Consider timezone support for distributed teams (future enhancement, Principle 7 recommendation)
+- Consider adding end_time > start_time cross-field validation (future enhancement)
