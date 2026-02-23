@@ -49,6 +49,59 @@
             <small class="form-text">What specific deliverable or decision should result from this meeting? (minimum 10 characters)</small>
         </div>
 
+        <div style="border-top: 1px solid #ddd; margin: 2rem 0; padding-top: 1.5rem;">
+            <h4 style="margin-top: 0;">Meeting Details (Optional)</h4>
+            <p style="color: #666; font-size: 0.95rem;">Capture when and where the meeting will take place.</p>
+
+            <div class="form-group">
+                <label for="meeting_date">Meeting Date</label>
+                <input
+                    type="date"
+                    name="meeting_date"
+                    id="meeting_date"
+                    class="form-control"
+                    value="{{ request.form.get('meeting_date', '') }}"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="start_time">Start Time</label>
+                <input
+                    type="time"
+                    name="start_time"
+                    id="start_time"
+                    class="form-control"
+                    value="{{ request.form.get('start_time', '') }}"
+                >
+                <small class="form-text">Format: HH:MM (24-hour)</small>
+            </div>
+
+            <div class="form-group">
+                <label for="end_time">End Time</label>
+                <input
+                    type="time"
+                    name="end_time"
+                    id="end_time"
+                    class="form-control"
+                    value="{{ request.form.get('end_time', '') }}"
+                >
+                <small class="form-text">Format: HH:MM (24-hour)</small>
+            </div>
+
+            <div class="form-group">
+                <label for="venue">Venue/Location</label>
+                <input
+                    type="text"
+                    name="venue"
+                    id="venue"
+                    class="form-control"
+                    placeholder="E.g., Conference Room A, Virtual (Zoom), Building 2 - 3rd Floor"
+                    value="{{ request.form.get('venue', '') }}"
+                >
+                <small class="form-text">Physical location, virtual meeting URL, or hybrid details</small>
+            </div>
+        </div>
+
         <div class="objective-guidance">
             <h4>Guidance for Outcome-Driven Objectives</h4>
             <ul>

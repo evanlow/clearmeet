@@ -185,12 +185,20 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             business_issue = request.form.get('business_issue', '').strip()
             objective = request.form.get('objective', '').strip()
             expected_output = request.form.get('expected_output', '').strip()
+            meeting_date = request.form.get('meeting_date', '').strip() or None
+            start_time = request.form.get('start_time', '').strip() or None
+            end_time = request.form.get('end_time', '').strip() or None
+            venue = request.form.get('venue', '').strip() or None
             
             # Validate using Pydantic model
             meeting_objective = MeetingObjective(
                 business_issue=business_issue,
                 objective=objective,
-                expected_output=expected_output
+                expected_output=expected_output,
+                meeting_date=meeting_date,
+                start_time=start_time,
+                end_time=end_time,
+                venue=venue
             )
             
             # Store in session
@@ -299,17 +307,45 @@ def create_app(config_name: Optional[str] = None) -> Flask:
 
         objective_data = session.get('meeting_objective', {})
         objective_text = objective_data.get('objective', '').strip() or 'Not specified'
+        meeting_date = objective_data.get('meeting_date', '')
+        start_time = objective_data.get('start_time', '')
+        end_time = objective_data.get('end_time', '')
+        venue = objective_data.get('venue', '')
 
         agenda_lines = [
             'MEETING AGENDA',
             '=' * 72,
-            f"Date: {datetime.now().strftime('%Y-%m-%d')}",
+        ]
+
+        # Add meeting date if available
+        if meeting_date:
+            agenda_lines.append(f"Date: {meeting_date}")
+        else:
+            agenda_lines.append(f"Date: {datetime.now().strftime('%Y-%m-%d')}")
+
+        # Add time if available
+        if start_time or end_time:
+            time_line = "Time: "
+            if start_time:
+                time_line += start_time
+            if end_time:
+                if start_time:
+                    time_line += f" – {end_time}"
+                else:
+                    time_line += f"Until {end_time}"
+            agenda_lines.append(time_line)
+
+        # Add venue if available
+        if venue:
+            agenda_lines.append(f"Venue: {venue}")
+
+        agenda_lines.extend([
             '',
             'Objective:',
             objective_text,
             '',
             'Agenda Items:'
-        ]
+        ])
 
         total_minutes = 0
         for index, item in enumerate(agenda_items, start=1):
@@ -667,6 +703,25 @@ def create_app(config_name: Optional[str] = None) -> Flask:
                 len(current_obj) < 15):
                 mom_data['objective'] = planned_objective.get('objective', '')
                 logger.info(f"Pre-populated objective from Step 1: {mom_data['objective'][:100]}")
+        
+        # Phase 2 Integration: Pre-populate date/time/venue from planned objective
+        if planned_objective and not session.get('date_time_venue_user_edited'):
+            if planned_objective.get('meeting_date') and not mom_data.get('date'):
+                mom_data['date'] = planned_objective.get('meeting_date')
+                logger.info(f"Pre-populated meeting date from Step 1: {mom_data['date']}")
+            
+            if planned_objective.get('start_time') and not mom_data.get('start_time'):
+                mom_data['start_time'] = planned_objective.get('start_time')
+                logger.info(f"Pre-populated start time from Step 1: {mom_data['start_time']}")
+            
+            if planned_objective.get('end_time') and not mom_data.get('end_time'):
+                mom_data['end_time'] = planned_objective.get('end_time')
+                logger.info(f"Pre-populated end time from Step 1: {mom_data['end_time']}")
+            
+            if planned_objective.get('venue') and not mom_data.get('venue'):
+                mom_data['venue'] = planned_objective.get('venue')
+                logger.info(f"Pre-populated venue from Step 1: {mom_data['venue']}")
+
         
         # Phase 2 Integration: Pass agenda items for display
         agenda_items = session.get('agenda_items', [])

@@ -13,6 +13,10 @@ class MeetingObjective(BaseModel):
     business_issue: str = Field(..., min_length=10, description="Business issue requiring discussion")
     objective: str = Field(..., min_length=15, description="Specific outcome-based meeting objective")
     expected_output: str = Field(..., min_length=10, description="Expected decision or output")
+    meeting_date: Optional[str] = Field(None, description="Meeting date (YYYY-MM-DD)")
+    start_time: Optional[str] = Field(None, description="Meeting start time (HH:MM)")
+    end_time: Optional[str] = Field(None, description="Meeting end time (HH:MM)")
+    venue: Optional[str] = Field(None, description="Meeting location or venue")
     
     @field_validator('business_issue')
     @classmethod
@@ -37,6 +41,42 @@ class MeetingObjective(BaseModel):
         if not v or len(v.strip()) < 10:
             raise ValueError("Expected output must be at least 10 characters")
         return v.strip()
+
+    @field_validator('meeting_date')
+    @classmethod
+    def meeting_date_valid(cls, v: Optional[str]) -> Optional[str]:
+        """Validate meeting date if provided."""
+        if not v:
+            return v
+        v_clean = v.strip()
+        return v_clean if v_clean else None
+
+    @field_validator('start_time')
+    @classmethod
+    def start_time_valid(cls, v: Optional[str]) -> Optional[str]:
+        """Validate start time if provided."""
+        if not v:
+            return v
+        v_clean = v.strip()
+        return v_clean if v_clean else None
+
+    @field_validator('end_time')
+    @classmethod
+    def end_time_valid(cls, v: Optional[str]) -> Optional[str]:
+        """Validate end time if provided."""
+        if not v:
+            return v
+        v_clean = v.strip()
+        return v_clean if v_clean else None
+
+    @field_validator('venue')
+    @classmethod
+    def venue_not_empty_string(cls, v: Optional[str]) -> Optional[str]:
+        """Ensure venue is not empty whitespace."""
+        if not v:
+            return v
+        v_clean = v.strip()
+        return v_clean if v_clean else None
     
     model_config = {
         "json_schema_extra": {

@@ -24,6 +24,34 @@
             <strong>Expected Output:</strong>
             <p>{{ meeting_objective.expected_output }}</p>
         </div>
+        {% if meeting_objective.meeting_date or meeting_objective.start_time or meeting_objective.end_time or meeting_objective.venue %}
+        <div style="border-top: 1px solid #e0e0e0; margin-top: 1rem; padding-top: 1rem;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                {% if meeting_objective.meeting_date %}
+                <div class="summary-item" style="margin: 0;">
+                    <strong>📅 Date:</strong>
+                    <p style="margin-top: 0.3rem;">{{ meeting_objective.meeting_date }}</p>
+                </div>
+                {% endif %}
+                {% if meeting_objective.start_time or meeting_objective.end_time %}
+                <div class="summary-item" style="margin: 0;">
+                    <strong>🕐 Time:</strong>
+                    <p style="margin-top: 0.3rem;">
+                        {% if meeting_objective.start_time %}{{ meeting_objective.start_time }}{% endif %}
+                        {% if meeting_objective.start_time and meeting_objective.end_time %} – {% endif %}
+                        {% if meeting_objective.end_time %}{{ meeting_objective.end_time }}{% endif %}
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+            {% if meeting_objective.venue %}
+            <div class="summary-item" style="margin-top: 1rem; margin-bottom: 0;">
+                <strong>📍 Venue:</strong>
+                <p style="margin-top: 0.3rem;">{{ meeting_objective.venue }}</p>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
     </div>
 </div>
 
