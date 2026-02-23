@@ -308,8 +308,8 @@ def create_app(config_name: Optional[str] = None) -> Flask:
         objective_data = session.get('meeting_objective', {})
         objective_text = objective_data.get('objective', '').strip() or 'Not specified'
         meeting_date = objective_data.get('meeting_date', '')
-        start_time = objective_data.get('start_time', '')
-        end_time = objective_data.get('end_time', '')
+        start_time_iso = objective_data.get('start_time', '')
+        end_time_iso = objective_data.get('end_time', '')
         venue = objective_data.get('venue', '')
 
         agenda_lines = [
@@ -323,16 +323,20 @@ def create_app(config_name: Optional[str] = None) -> Flask:
         else:
             agenda_lines.append(f"Date: {datetime.now().strftime('%Y-%m-%d')}")
 
-        # Add time if available
-        if start_time or end_time:
+        # Add time if available (extract time from ISO 8601 datetime string)
+        if start_time_iso or end_time_iso:
             time_line = "Time: "
-            if start_time:
-                time_line += start_time
-            if end_time:
-                if start_time:
-                    time_line += f" – {end_time}"
+            if start_time_iso:
+                # Extract time from ISO 8601: "2026-02-23T09:30" -> "09:30"
+                start_time_display = start_time_iso.split('T')[1] if 'T' in start_time_iso else start_time_iso
+                time_line += start_time_display
+            if end_time_iso:
+                # Extract time from ISO 8601: "2026-02-23T11:00" -> "11:00"
+                end_time_display = end_time_iso.split('T')[1] if 'T' in end_time_iso else end_time_iso
+                if start_time_iso:
+                    time_line += f" – {end_time_display}"
                 else:
-                    time_line += f"Until {end_time}"
+                    time_line += f"Until {end_time_display}"
             agenda_lines.append(time_line)
 
         # Add venue if available

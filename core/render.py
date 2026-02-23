@@ -106,16 +106,20 @@ def mom_to_text(mom: MeetingMOM, agenda_items: Optional[list[dict]] = None) -> s
         f"Date: {mom.date}",
     ]
 
-    # Add time information if available
+    # Add time information if available (extract time from ISO 8601 datetime strings)
     if mom.start_time or mom.end_time:
         time_info = ""
         if mom.start_time:
-            time_info = f"Start: {mom.start_time}"
+            # Extract time from ISO 8601: "2026-02-23T09:30" -> "09:30"
+            start_display = mom.start_time.split('T')[1] if 'T' in mom.start_time else mom.start_time
+            time_info = f"Start: {start_display}"
         if mom.end_time:
+            # Extract time from ISO 8601: "2026-02-23T11:00" -> "11:00"
+            end_display = mom.end_time.split('T')[1] if 'T' in mom.end_time else mom.end_time
             if time_info:
-                time_info += f" | End: {mom.end_time}"
+                time_info += f" | End: {end_display}"
             else:
-                time_info = f"End: {mom.end_time}"
+                time_info = f"End: {end_display}"
         if time_info:
             lines.append(time_info)
 

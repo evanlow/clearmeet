@@ -5,6 +5,7 @@ Provides type-safe validation and serialization for meeting minutes.
 """
 from pydantic import BaseModel, Field, ValidationError, field_validator
 from typing import Optional
+from datetime import datetime
 
 
 class MeetingObjective(BaseModel):
@@ -13,9 +14,9 @@ class MeetingObjective(BaseModel):
     business_issue: str = Field(..., min_length=10, description="Business issue requiring discussion")
     objective: str = Field(..., min_length=15, description="Specific outcome-based meeting objective")
     expected_output: str = Field(..., min_length=10, description="Expected decision or output")
-    meeting_date: Optional[str] = Field(None, description="Meeting date (YYYY-MM-DD)")
-    start_time: Optional[str] = Field(None, description="Meeting start time (HH:MM)")
-    end_time: Optional[str] = Field(None, description="Meeting end time (HH:MM)")
+    meeting_date: Optional[str] = Field(None, description="Meeting date in ISO 8601 format (YYYY-MM-DD)")
+    start_time: Optional[str] = Field(None, description="Meeting start datetime in ISO 8601 format (YYYY-MM-DDTHH:MM)")
+    end_time: Optional[str] = Field(None, description="Meeting end datetime in ISO 8601 format (YYYY-MM-DDTHH:MM)")
     venue: Optional[str] = Field(None, description="Meeting location or venue")
     
     @field_validator('business_issue')
@@ -45,29 +46,56 @@ class MeetingObjective(BaseModel):
     @field_validator('meeting_date')
     @classmethod
     def meeting_date_valid(cls, v: Optional[str]) -> Optional[str]:
-        """Validate meeting date if provided."""
+        """Validate meeting date if provided - expects ISO 8601 date format (YYYY-MM-DD)."""
         if not v:
             return v
         v_clean = v.strip()
-        return v_clean if v_clean else None
+        if not v_clean:
+            return None
+        # Validate ISO 8601 date format by attempting to parse
+        try:
+            parsed_date = datetime.fromisoformat(v_clean).date()
+            # Check not in the past
+            from datetime import date
+            if parsed_date < date.today():
+                raise ValueError("Meeting date cannot be in the past")
+        except ValueError as e:
+            if "past" in str(e).lower():
+                raise
+            raise ValueError("Meeting date must be in ISO 8601 format (YYYY-MM-DD)")
+        return v_clean
 
     @field_validator('start_time')
     @classmethod
     def start_time_valid(cls, v: Optional[str]) -> Optional[str]:
-        """Validate start time if provided."""
+        """Validate start time if provided - expects ISO 8601 datetime format."""
         if not v:
             return v
         v_clean = v.strip()
-        return v_clean if v_clean else None
+        if not v_clean:
+            return None
+        # Validate ISO 8601 format by attempting to parse
+        try:
+            datetime.fromisoformat(v_clean.replace('Z', '+00:00'))
+        except ValueError:
+            raise ValueError("Start time must be in ISO 8601 format (YYYY-MM-DDTHH:MM or YYYY-MM-DDTHH:MM:SS)")
+        return v_clean
 
     @field_validator('end_time')
     @classmethod
     def end_time_valid(cls, v: Optional[str]) -> Optional[str]:
-        """Validate end time if provided."""
+        """Validate end time if provided - expects ISO 8601 datetime format."""
         if not v:
             return v
         v_clean = v.strip()
-        return v_clean if v_clean else None
+        if not v_clean:
+            return None
+        # Validate ISO 8601 format by attempting to parse
+        try:
+            datetime.fromisoformat(v_clean.replace('Z', '+00:00'))
+        except ValueError:
+            raise ValueError("End time must be in ISO 8601 format (YYYY-MM-DDTHH:MM or YYYY-MM-DDTHH:MM:SS)")
+        return v_clean
 
     @field_validator('venue')
     @classmethod
@@ -77,6 +105,7 @@ class MeetingObjective(BaseModel):
             return v
         v_clean = v.strip()
         return v_clean if v_clean else None
+
     
     model_config = {
         "json_schema_extra": {
@@ -198,8 +227,8 @@ class MeetingMOM(BaseModel):
 
     title: str = Field(..., min_length=3, description="Meeting title")
     date: str = Field(..., min_length=4, description="Meeting date (YYYY-MM-DD or similar)")
-    start_time: Optional[str] = Field(None, description="Meeting start time (HH:MM or HH:MM AM/PM)")
-    end_time: Optional[str] = Field(None, description="Meeting end time (HH:MM or HH:MM AM/PM)")
+    start_time: Optional[str] = Field(None, description="Meeting start time in ISO 8601 format (YYYY-MM-DDTHH:MM)")
+    end_time: Optional[str] = Field(None, description="Meeting end time in ISO 8601 format (YYYY-MM-DDTHH:MM)")
     venue: Optional[str] = Field(None, description="Meeting location or venue name")
     objective: str = Field(..., min_length=10, description="Meeting purpose and objective")
     decisions: list[Decision] = Field(..., description="Decisions made during meeting")
@@ -229,20 +258,34 @@ class MeetingMOM(BaseModel):
     @field_validator('start_time')
     @classmethod
     def start_time_valid(cls, v: Optional[str]) -> Optional[str]:
-        """Validate start time format if provided."""
+        """Validate start time format if provided - expects ISO 8601 datetime string."""
         if not v:
             return v
         v_clean = v.strip()
-        return v_clean if v_clean else None
+        if not v_clean:
+            return None
+        # Validate ISO 8601 format by attempting to parse
+        try:
+            datetime.fromisoformat(v_clean.replace('Z', '+00:00'))
+        except ValueError:
+            raise ValueError("Start time must be in ISO 8601 format (YYYY-MM-DDTHH:MM or YYYY-MM-DDTHH:MM:SS)")
+        return v_clean
 
     @field_validator('end_time')
     @classmethod
     def end_time_valid(cls, v: Optional[str]) -> Optional[str]:
-        """Validate end time format if provided."""
+        """Validate end time format if provided - expects ISO 8601 datetime string."""
         if not v:
             return v
         v_clean = v.strip()
-        return v_clean if v_clean else None
+        if not v_clean:
+            return None
+        # Validate ISO 8601 format by attempting to parse
+        try:
+            datetime.fromisoformat(v_clean.replace('Z', '+00:00'))
+        except ValueError:
+            raise ValueError("End time must be in ISO 8601 format (YYYY-MM-DDTHH:MM or YYYY-MM-DDTHH:MM:SS)")
+        return v_clean
 
     @field_validator('venue')
     @classmethod
