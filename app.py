@@ -185,9 +185,8 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             business_issue = request.form.get('business_issue', '').strip()
             objective = request.form.get('objective', '').strip()
             expected_output = request.form.get('expected_output', '').strip()
-            meeting_date = request.form.get('meeting_date', '').strip() or None
-            start_time = request.form.get('start_time', '').strip() or None
-            end_time = request.form.get('end_time', '').strip() or None
+            start_time = request.form.get('start_time', '').strip()
+            end_time = request.form.get('end_time', '').strip()
             venue = request.form.get('venue', '').strip() or None
             
             # Validate using Pydantic model
@@ -195,7 +194,6 @@ def create_app(config_name: Optional[str] = None) -> Flask:
                 business_issue=business_issue,
                 objective=objective,
                 expected_output=expected_output,
-                meeting_date=meeting_date,
                 start_time=start_time,
                 end_time=end_time,
                 venue=venue
@@ -307,7 +305,6 @@ def create_app(config_name: Optional[str] = None) -> Flask:
 
         objective_data = session.get('meeting_objective', {})
         objective_text = objective_data.get('objective', '').strip() or 'Not specified'
-        meeting_date = objective_data.get('meeting_date', '')
         start_time_iso = objective_data.get('start_time', '')
         end_time_iso = objective_data.get('end_time', '')
         venue = objective_data.get('venue', '')
@@ -317,13 +314,14 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             '=' * 72,
         ]
 
-        # Add meeting date if available
-        if meeting_date:
+        # Extract date from start_time (ISO 8601: "2026-02-23T09:30")
+        if start_time_iso and 'T' in start_time_iso:
+            meeting_date = start_time_iso.split('T')[0]
             agenda_lines.append(f"Date: {meeting_date}")
         else:
             agenda_lines.append(f"Date: {datetime.now().strftime('%Y-%m-%d')}")
 
-        # Add time if available (extract time from ISO 8601 datetime string)
+        # Add time range (extract time from ISO 8601 datetime string)
         if start_time_iso or end_time_iso:
             time_line = "Time: "
             if start_time_iso:
@@ -710,9 +708,12 @@ def create_app(config_name: Optional[str] = None) -> Flask:
         
         # Phase 2 Integration: Pre-populate date/time/venue from planned objective
         if planned_objective and not session.get('date_time_venue_user_edited'):
-            if planned_objective.get('meeting_date') and not mom_data.get('date'):
-                mom_data['date'] = planned_objective.get('meeting_date')
-                logger.info(f"Pre-populated meeting date from Step 1: {mom_data['date']}")
+            # Extract date from start_time if available (ISO 8601: "2026-02-23T09:30")
+            if planned_objective.get('start_time') and not mom_data.get('date'):
+                start_time = planned_objective.get('start_time')
+                if 'T' in start_time:
+                    mom_data['date'] = start_time.split('T')[0]
+                    logger.info(f"Pre-populated meeting date from Step 1 start_time: {mom_data['date']}")
             
             if planned_objective.get('start_time') and not mom_data.get('start_time'):
                 mom_data['start_time'] = planned_objective.get('start_time')
@@ -1036,14 +1037,25 @@ def create_app(config_name: Optional[str] = None) -> Flask:
                 session['validated'] = True
             
             # Prepare metadata
+            mom_data = session.get('mom_data', {})
+            
+            # Extract meeting date from mom_data or planned_objective
+            meeting_date = None
+            if mom_data.get('date'):
+                meeting_date = mom_data['date']
+            elif mom_data.get('start_time') and 'T' in mom_data['start_time']:
+                meeting_date = mom_data['start_time'].split('T')[0]
+            else:
+                # Fallback to today's date
+                meeting_date = datetime.now().strftime('%Y-%m-%d')
+            
             metadata = {
-                'meeting_date': datetime.now().strftime('%Y-%m-%d'),
+                'meeting_date': meeting_date,
                 'meeting_title': 'Meeting Minutes'
             }
             
             # Extract title/objective for PDF header
             if not session.get('text_override', False):
-                mom_data = session.get('mom_data', {})
                 if mom_data.get('title'):
                     metadata['meeting_title'] = mom_data['title'][:50]
                 elif mom_data.get('objective'):

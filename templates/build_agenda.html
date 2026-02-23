@@ -24,22 +24,22 @@
             <strong>Expected Output:</strong>
             <p>{{ meeting_objective.expected_output }}</p>
         </div>
-        {% if meeting_objective.meeting_date or meeting_objective.start_time or meeting_objective.end_time or meeting_objective.venue %}
+        {% if meeting_objective.start_time or meeting_objective.end_time or meeting_objective.venue %}
         <div style="border-top: 1px solid #e0e0e0; margin-top: 1rem; padding-top: 1rem;">
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                {% if meeting_objective.meeting_date %}
+                {% if meeting_objective.start_time %}
                 <div class="summary-item" style="margin: 0;">
                     <strong>📅 Date:</strong>
-                    <p style="margin-top: 0.3rem;">{{ meeting_objective.meeting_date }}</p>
+                    <p style="margin-top: 0.3rem;">{{ meeting_objective.start_time.split('T')[0] }}</p>
                 </div>
                 {% endif %}
                 {% if meeting_objective.start_time or meeting_objective.end_time %}
                 <div class="summary-item" style="margin: 0;">
                     <strong>🕐 Time:</strong>
                     <p style="margin-top: 0.3rem;">
-                        {% if meeting_objective.start_time %}{{ meeting_objective.start_time }}{% endif %}
+                        {% if meeting_objective.start_time %}{{ meeting_objective.start_time.split('T')[1] if 'T' in meeting_objective.start_time else meeting_objective.start_time }}{% endif %}
                         {% if meeting_objective.start_time and meeting_objective.end_time %} – {% endif %}
-                        {% if meeting_objective.end_time %}{{ meeting_objective.end_time }}{% endif %}
+                        {% if meeting_objective.end_time %}{{ meeting_objective.end_time.split('T')[1] if 'T' in meeting_objective.end_time else meeting_objective.end_time }}{% endif %}
                     </p>
                 </div>
                 {% endif %}

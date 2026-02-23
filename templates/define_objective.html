@@ -50,43 +50,33 @@
         </div>
 
         <div style="border-top: 1px solid #ddd; margin: 2rem 0; padding-top: 1.5rem;">
-            <h4 style="margin-top: 0;">Meeting Details (Optional)</h4>
-            <p style="color: #666; font-size: 0.95rem;">Capture when and where the meeting will take place.</p>
+            <h4 style="margin-top: 0;">Meeting Logistics</h4>
+            <p style="color: #666; font-size: 0.95rem;">When and where will this meeting take place?</p>
 
             <div class="form-group">
-                <label for="meeting_date">Meeting Date</label>
-                <input
-                    type="date"
-                    name="meeting_date"
-                    id="meeting_date"
-                    class="form-control"
-                    value="{{ request.form.get('meeting_date', '') }}"
-                >
-                <small class="form-text">Date of the meeting (YYYY-MM-DD)</small>
-            </div>
-
-            <div class="form-group">
-                <label for="start_time">Start Date & Time</label>
+                <label for="start_time">Start Date & Time <span style="color: red;">*</span></label>
                 <input
                     type="datetime-local"
                     name="start_time"
                     id="start_time"
                     class="form-control"
                     value="{{ request.form.get('start_time', '') }}"
+                    required
                 >
-                <small class="form-text">Meeting start date and time - stored in ISO 8601 format</small>
+                <small class="form-text">When does the meeting start? (Required)</small>
             </div>
 
             <div class="form-group">
-                <label for="end_time">End Date & Time</label>
+                <label for="end_time">End Date & Time <span style="color: red;">*</span></label>
                 <input
                     type="datetime-local"
                     name="end_time"
                     id="end_time"
                     class="form-control"
                     value="{{ request.form.get('end_time', '') }}"
+                    required
                 >
-                <small class="form-text">Meeting end date and time - stored in ISO 8601 format</small>
+                <small class="form-text">When does the meeting end? (Required)</small>
             </div>
 
             <div class="form-group">
