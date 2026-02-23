@@ -462,6 +462,140 @@ class PDFExporter:
         
         return text
     
+    def export_agenda_to_pdf(
+        self,
+        objective_data: dict,
+        agenda_items: list[dict],
+        metadata: Optional[dict] = None
+    ) -> BytesIO:
+        """
+        Export meeting agenda to professional PDF format.
+        
+        Args:
+            objective_data: Meeting objective data (objective, start_time, end_time, venue, attendees)
+            agenda_items: List of agenda items
+            metadata: Optional metadata (meeting_title, etc.)
+            
+        Returns:
+            BytesIO buffer containing PDF data
+        """
+        # Create BytesIO buffer
+        buffer = BytesIO()
+        
+        # Create PDF document
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=self.page_size,
+            rightMargin=0.75*inch,
+            leftMargin=0.75*inch,
+            topMargin=0.75*inch,
+            bottomMargin=0.5*inch,
+        )
+        
+        # Build story (content)
+        story = []
+        
+        # Title
+        story.append(Paragraph('Meeting Agenda', self.styles['title']))
+        
+        # Generation timestamp
+        generated_date = datetime.now().strftime('%Y-%m-%d %H:%M')
+        story.append(Paragraph(f'<font size=9 color="#999999">Generated: {generated_date}</font>', self.styles['body']))
+        story.append(Spacer(1, 0.15*inch))
+        
+        # Add horizontal divider
+        story.append(Paragraph('<para alignment="left">________________________________________________________________________________________________</para>', self.styles['small']))
+        story.append(Spacer(1, 0.2*inch))
+        
+        # Meeting Details Section
+        # Extract date and time from ISO 8601
+        start_time_iso = objective_data.get('start_time', '')
+        end_time_iso = objective_data.get('end_time', '')
+        venue = objective_data.get('venue', '')
+        attendees = objective_data.get('attendees', [])
+        
+        meeting_date = ''
+        start_time = ''
+        end_time = ''
+        
+        if start_time_iso and 'T' in start_time_iso:
+            meeting_date = start_time_iso.split('T')[0]
+            start_time = start_time_iso.split('T')[1]
+        
+        if end_time_iso and 'T' in end_time_iso:
+            end_time = end_time_iso.split('T')[1]
+        
+        # Date
+        if meeting_date:
+            story.append(Paragraph(f'<b>Date:</b> {meeting_date}', self.styles['body']))
+        
+        # Time
+        if start_time or end_time:
+            time_text = f'<b>Time:</b> '
+            if start_time:
+                time_text += start_time
+            if end_time:
+                if start_time:
+                    time_text += f' – {end_time}'
+                else:
+                    time_text += f'Until {end_time}'
+            story.append(Paragraph(time_text, self.styles['body']))
+        
+        # Venue
+        if venue:
+            story.append(Paragraph(f'<b>Venue:</b> {self._escape_html(venue)}', self.styles['body']))
+        
+        # Attendees
+        if attendees and len(attendees) > 0:
+            attendees_text = '<b>Expected Attendees:</b> '
+            attendees_text += ', '.join([self._escape_html(name) for name in attendees])
+            story.append(Paragraph(attendees_text, self.styles['body']))
+        
+        story.append(Spacer(1, 0.25*inch))
+        
+        # Objective Section
+        objective_text = objective_data.get('objective', '').strip()
+        if objective_text:
+            story.append(Paragraph('<font color="#2c3e50"><b>Objective:</b></font>', self.styles['section']))
+            story.append(Paragraph(self._escape_html(objective_text), self.styles['body']))
+            story.append(Spacer(1, 0.2*inch))
+        
+        # Agenda Items Section
+        story.append(Paragraph('<font color="#2c3e50"><b>Agenda Items:</b></font>', self.styles['section']))
+        story.append(Spacer(1, 0.1*inch))
+        
+        total_minutes = 0
+        for index, item in enumerate(agenda_items, start=1):
+            title = str(item.get('title', '')).strip() or f'Agenda Item {index}'
+            duration = int(item.get('duration_minutes', 0) or 0)
+            description = str(item.get('description', '')).strip()
+            total_minutes += duration
+            
+            # Item number and title
+            item_text = f'<b>{index}. {self._escape_html(title)}</b> <font color="#666666">({duration} min)</font>'
+            story.append(Paragraph(item_text, self.styles['body']))
+            
+            # Description if available
+            if description:
+                desc_text = f'<font color="#555555">&nbsp;&nbsp;&nbsp;&nbsp;{self._escape_html(description)}</font>'
+                story.append(Paragraph(desc_text, self.styles['body']))
+            
+            story.append(Spacer(1, 0.08*inch))
+        
+        # Total Duration
+        story.append(Spacer(1, 0.1*inch))
+        story.append(Paragraph(f'<b>Total Duration:</b> {total_minutes} minutes', self.styles['body']))
+        
+        # Footer
+        story.append(Spacer(1, 0.3*inch))
+        story.append(Paragraph('<para alignment="center"><font size=8 color="#999999">This document was automatically generated by ClearMeet</font></para>', self.styles['small']))
+        
+        # Build PDF
+        doc.build(story)
+        buffer.seek(0)
+        
+        return buffer
+    
     @staticmethod
     def save_buffer_to_file(buffer: BytesIO, filepath: str) -> None:
         """
