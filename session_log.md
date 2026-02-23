@@ -1125,3 +1125,77 @@ Next Steps:
 - Manual UI verification recommended (form submission, display, PDF export)
 - Consider timezone support for distributed teams (future enhancement, Principle 7 recommendation)
 - Consider adding end_time > start_time cross-field validation (future enhancement)
+
+---
+
+## Session: 2026-02-23 / attendees-step1-implementation
+
+Checkpoint Type: implementation
+Trigger Event: User request to add attendees capture to Step 1 (Define Objective) - Option 1 implementation
+
+Directive Compliance KPI: 7/7 green
+- Green: #1-7 (all requirements met for this feature implementation)
+
+Issue Context:
+- Attendees previously captured only in Step 6 (Edit MOM) - too late for meeting planning
+- Missing visibility during Step 2 (Build Agenda) when planning who should attend and what topics to cover
+- Accountability benefit: Knowing attendees upfront helps ensure right people are invited
+
+Completed Actions:
+- core/schema.py: Added attendees field to MeetingObjective model (Optional[list[str]])
+- core/schema.py: Created attendees_valid() validator to remove duplicates, empty entries, and whitespace
+- templates/define_objective.html: Added Expected Attendees input field (comma-separated)
+- templates/build_agenda.html: Display attendees with ?? emoji and count (e.g., \"5 attendees\")
+- app.py save_objective(): Parse attendees from comma-separated string to validated list
+- app.py edit(): Auto-populate attendees in Step 6 from planned_objective data
+- All tests passing: 177/177, 0 warnings, 0 regressions
+- Committed and pushed to origin/main (commit 6ec5001)
+
+Implementation Details:
+- Input format: \"Alice Johnson, Bob Smith, Carol White\" (comma-separated)
+- Validation: Removes duplicates (case-insensitive), strips whitespace, eliminates empty entries
+- Display: Shows as list with count \"(5 attendees)\" in Step 2 agenda view
+- Auto-population: Flows from Step 1 ? Step 2 (display) ? Step 6 (editable)
+- Follows Principle 7: Frontend input ? Backend validation (Pydantic) ? Clean storage
+
+User Impact:
+- Before: Attendees only captured in Step 6 (Edit MOM, during/after meeting)
+- After: Attendees captured in Step 1 (Define Objective, during planning)
+- Benefit: Visible in Step 2 when building agenda for context
+- Benefit: Auto-populated in Step 6, reducing data entry (users can still override)
+- Optional field with helpful placeholder and guidance text
+
+Code Quality:
+- 4 files changed: 37 insertions(+), 1 deletion (net +36 lines)
+- Clean separation: schema validation, form capture, display logic all properly layered
+- No breaking changes to existing functionality
+- Follows existing patterns for other optional fields (venue)
+
+Next Steps:
+- User to perform manual UI testing (optional)
+- Future enhancement: Dynamic list UI with add/remove buttons (Option 2)
+- Future enhancement: Rich attendee model with roles and attendance tracking (Option 3)
+
+---
+
+## Session: 2026-02-23 / attendees-step1-implementation
+
+Checkpoint Type: implementation
+Trigger Event: User request to add attendees capture to Step 1 (Define Objective) - Option 1 implementation
+
+Directive Compliance KPI: 7/7 green
+- Green: #1-7 (all requirements met for this feature implementation)
+
+Completed Actions:
+- core/schema.py: Added attendees field to MeetingObjective model
+- templates/define_objective.html: Added Expected Attendees input field
+- templates/build_agenda.html: Display attendees with emoji and count
+- app.py: Parse attendees and auto-populate in Step 6
+- All tests passing: 177/177, 0 warnings
+- Committed and pushed (commit 6ec5001)
+
+User Impact:
+- Attendees now captured in Step 1 (planning) instead of only Step 6 (after meeting)
+- Visible in Step 2 agenda view for context
+- Auto-populated in Step 6 from planning data
+
