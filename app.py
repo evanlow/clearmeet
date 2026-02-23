@@ -10,6 +10,7 @@ from werkzeug.utils import secure_filename
 import os
 import json
 import logging
+from io import BytesIO
 from datetime import datetime, timezone
 from typing import Optional
 import threading
@@ -23,6 +24,7 @@ from core.render import mom_to_text, apply_user_edits
 from core.schema import validate_mom_dict, MeetingMOM, MeetingObjective, AgendaItem
 from core.validation import MOMValidator, ValidationItem
 from core.export import PDFExporter
+from core.pdf_export import export_mom_pdf
 from core.agenda import AgendaBuilder
 
 # Module-level progress tracking (shared across requests)
@@ -286,6 +288,57 @@ def create_app(config_name: Optional[str] = None) -> Flask:
         except Exception as e:
             logger.error(f"Agenda save failed: {e}")
             return jsonify({"error": str(e)}), 500
+
+    @app.route('/meeting/agenda/export', methods=['GET'])
+    def export_agenda_pdf():
+        """Export current agenda (Steps 1-2) to PDF."""
+        agenda_items = session.get('agenda_items', [])
+        if not agenda_items:
+            flash('No agenda found. Please build and save your agenda first.', 'warning')
+            return redirect(url_for('build_agenda'))
+
+        objective_data = session.get('meeting_objective', {})
+        objective_text = objective_data.get('objective', '').strip() or 'Not specified'
+
+        agenda_lines = [
+            'MEETING AGENDA',
+            '=' * 72,
+            f"Date: {datetime.now().strftime('%Y-%m-%d')}",
+            '',
+            'Objective:',
+            objective_text,
+            '',
+            'Agenda Items:'
+        ]
+
+        total_minutes = 0
+        for index, item in enumerate(agenda_items, start=1):
+            title = str(item.get('title', '')).strip() or f'Agenda Item {index}'
+            duration = int(item.get('duration_minutes', 0) or 0)
+            description = str(item.get('description', '')).strip()
+            total_minutes += duration
+
+            agenda_lines.append(f"{index}. {title} ({duration} min)")
+            if description:
+                agenda_lines.append(f"   Description: {description}")
+
+        agenda_lines.extend([
+            '',
+            f"Total Duration: {total_minutes} minutes"
+        ])
+
+        agenda_text = '\n'.join(agenda_lines)
+        pdf_bytes = export_mom_pdf('Meeting Agenda', agenda_text)
+
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"Agenda_{timestamp}.pdf"
+
+        return send_file(
+            BytesIO(pdf_bytes),
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=filename
+        )
 
     
     @app.route('/process', methods=['GET', 'POST'])

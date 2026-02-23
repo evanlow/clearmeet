@@ -26,6 +26,7 @@
         <p style="margin-bottom: 1rem;">You've completed objective definition and agenda planning. Ready to proceed!</p>
         <div style="display: flex; gap: 1rem;">
             <a href="#transcript-section" class="btn btn-primary workflow-scroll-btn">Continue to Transcript Input (Step 4) →</a>
+            <a href="{{ url_for('export_agenda_pdf') }}" class="btn btn-secondary">Download Agenda PDF</a>
             <a href="{{ url_for('build_agenda') }}" class="btn btn-secondary">Edit Agenda</a>
         </div>
     </div>

@@ -531,6 +531,124 @@ Next Steps:
 
 ---
 
+## Session: 2026-02-23 / agenda-pdf-export-baseline-gate
+
+Checkpoint Type: test
+Trigger Event: User approved implementation of agenda PDF export workflow and requested Prime Directive compliance
+
+Directive Compliance KPI: 5/6 green
+- Green: #1, #2, #3, #4, #6
+- Yellow: #5 (UI change planned; manual browser smoke + console check pending after implementation)
+- Red: none
+
+KPI Delta Since Previous Entry:
+- New session checkpoint opened with clean baseline gate
+
+Checklist Status:
+1. Track directive compliance live
+2. Verify venv before Python actions (Principle 0)
+3. Confirm baseline tests pass clean (Principle 1)
+4. Require post-change tests clean (Principle 1)
+5. Enforce UI manual smoke checks for UI changes (Principle 5)
+6. Record compliance status in updates
+
+Completed Actions:
+- Verified Python interpreter in active workspace venv path: `.../clearmeet/Scripts/python.exe`
+- Ran baseline full test suite before code changes
+- Baseline result: **174/174 passed in 33.41s, 0 warnings shown**
+- Confirmed target implementation points in `app.py`, `templates/index.html`, and `tests/test_routes.py`
+
+Risks / Blockers / Corrections:
+- None at baseline gate
+
+Next Steps:
+- Implement dedicated agenda PDF export route
+- Add UI entry point from "Meeting Plan Ready" card
+- Add tests and re-run full regression suite
+
+---
+
+## Session: 2026-02-23 / agenda-pdf-export-implementation-cycle
+
+Checkpoint Type: implementation
+Trigger Event: Completed backend + UI + tests for agenda PDF export workflow
+
+Directive Compliance KPI: 5/6 green
+- Green: #1, #2, #3, #4, #6
+- Yellow: #5 (UI manual browser smoke + console verification pending human run-through)
+- Red: none
+
+KPI Delta Since Previous Entry:
+- Scope implemented: new export route + status-card CTA + route coverage
+- Test count increased from 174 to 177 passing tests
+
+Checklist Status:
+1. Track directive compliance live
+2. Verify venv before Python actions (Principle 0)
+3. Confirm baseline tests pass clean (Principle 1)
+4. Require post-change tests clean (Principle 1)
+5. Enforce UI manual smoke checks for UI changes (Principle 5)
+6. Record compliance status in updates
+
+Completed Actions:
+- Added route `GET /meeting/agenda/export` in `app.py`
+  - Exports agenda from session as a downloadable PDF attachment
+  - Includes objective, numbered agenda items, and total duration
+  - Redirects safely to `/meeting/agenda` with warning flash when agenda is missing
+- Added "Download Agenda PDF" button to meeting-plan-ready card in `templates/index.html`
+- Added route/UI tests in `tests/test_routes.py`:
+  - CTA visibility on index when agenda exists
+  - Export redirect behavior when session lacks agenda
+  - Successful PDF attachment response when agenda exists
+
+Risks / Blockers / Corrections:
+- UI manual smoke test still required for full 6/6 green closeout
+
+Next Steps:
+- Execute post-change tests and finalize handoff
+- Run manual browser smoke check for button click/download and console errors
+
+---
+
+## Session: 2026-02-23 / agenda-pdf-export-postchange-test-gate
+
+Checkpoint Type: test
+Trigger Event: Completed targeted and full regression test verification after implementation
+
+Directive Compliance KPI: 5/6 green
+- Green: #1, #2, #3, #4, #6
+- Yellow: #5 (manual browser smoke + console check pending)
+- Red: none
+
+KPI Delta Since Previous Entry:
+- Post-change verification complete and clean
+
+Checklist Status:
+1. Track directive compliance live
+2. Verify venv before Python actions (Principle 0)
+3. Confirm baseline tests pass clean (Principle 1)
+4. Require post-change tests clean (Principle 1)
+5. Enforce UI manual smoke checks for UI changes (Principle 5)
+6. Record compliance status in updates
+
+Completed Actions:
+- Ran targeted tests: `tests/test_routes.py` -> **28/28 passed in 1.53s**
+- Ran full suite: **177/177 passed in 40.98s, 0 warnings shown**
+- Verified no regression from new agenda PDF workflow
+
+Risks / Blockers / Corrections:
+- No backend/test blockers
+- Remaining completion step for full KPI green: browser-level manual smoke + console check for new CTA flow
+
+Next Steps:
+- Manual smoke checklist:
+  - From index "Meeting Plan Ready" card, click "Download Agenda PDF"
+  - Confirm PDF downloads and opens with agenda content
+  - Open browser DevTools console (F12) and confirm no errors
+  - Confirm "Continue to Transcript Input" behavior remains unchanged
+
+---
+
 ## Session: 2026-02-21 / post-change-test-execution
 
 Checkpoint Type: test

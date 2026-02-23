@@ -498,3 +498,44 @@ class TestAgendaWorkflow:
         assert response.status_code == 200
         assert b'Meeting Plan Ready' in response.data
         assert b'2 items' in response.data or b'30 minutes' in response.data
+
+    def test_index_shows_download_agenda_pdf_button(self, client):
+        """Test that index page shows agenda PDF download CTA when agenda exists."""
+        with client.session_transaction() as sess:
+            sess['agenda_items'] = [
+                {'title': 'Intro', 'duration_minutes': 10, 'description': ''}
+            ]
+
+        response = client.get('/')
+
+        assert response.status_code == 200
+        assert b'Download Agenda PDF' in response.data
+        assert b'/meeting/agenda/export' in response.data
+
+    def test_export_agenda_pdf_requires_saved_agenda(self, client):
+        """Test agenda export redirects when no saved agenda exists in session."""
+        response = client.get('/meeting/agenda/export', follow_redirects=False)
+
+        assert response.status_code == 302
+        assert '/meeting/agenda' in response.location
+
+    def test_export_agenda_pdf_returns_attachment(self, client):
+        """Test agenda export returns downloadable PDF when session has agenda."""
+        with client.session_transaction() as sess:
+            sess['meeting_objective'] = {
+                'business_issue': 'Align teams',
+                'objective': 'Finalize Q2 priorities',
+                'expected_output': 'Approved plan'
+            }
+            sess['agenda_items'] = [
+                {'title': 'Project updates', 'duration_minutes': 15, 'description': 'Team status roundtable'},
+                {'title': 'Risk review', 'duration_minutes': 20, 'description': 'Top blockers and mitigations'}
+            ]
+
+        response = client.get('/meeting/agenda/export')
+
+        assert response.status_code == 200
+        assert response.mimetype == 'application/pdf'
+        disposition = response.headers.get('Content-Disposition', '')
+        assert 'attachment;' in disposition
+        assert 'Agenda_' in disposition
