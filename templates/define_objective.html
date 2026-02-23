@@ -91,6 +91,19 @@
                 >
                 <small class="form-text">Physical location, virtual meeting URL, or hybrid details</small>
             </div>
+
+            <div class="form-group">
+                <label for="attendees">Expected Attendees</label>
+                <input
+                    type="text"
+                    name="attendees"
+                    id="attendees"
+                    class="form-control"
+                    placeholder="E.g., Alice Johnson, Bob Smith, Carol White"
+                    value="{{ request.form.get('attendees', '') }}"
+                >
+                <small class="form-text">Comma-separated list of attendees (optional but recommended for accountability)</small>
+            </div>
         </div>
 
         <div class="objective-guidance">

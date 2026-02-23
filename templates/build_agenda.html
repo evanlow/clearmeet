@@ -50,6 +50,17 @@
                 <p style="margin-top: 0.3rem;">{{ meeting_objective.venue }}</p>
             </div>
             {% endif %}
+            {% if meeting_objective.attendees %}
+            <div class="summary-item" style="margin-top: 1rem; margin-bottom: 0;">
+                <strong>👥 Expected Attendees:</strong>
+                <p style="margin-top: 0.3rem;">
+                    {% for attendee in meeting_objective.attendees %}
+                        {{ attendee }}{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                    <span style="color: #666; font-size: 0.9em;">({{ meeting_objective.attendees|length }} attendee{{ 's' if meeting_objective.attendees|length > 1 else '' }})</span>
+                </p>
+            </div>
+            {% endif %}
         </div>
         {% endif %}
     </div>

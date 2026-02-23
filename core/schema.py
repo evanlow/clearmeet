@@ -17,6 +17,7 @@ class MeetingObjective(BaseModel):
     start_time: str = Field(..., description="Meeting start datetime in ISO 8601 format (YYYY-MM-DDTHH:MM) - REQUIRED")
     end_time: str = Field(..., description="Meeting end datetime in ISO 8601 format (YYYY-MM-DDTHH:MM) - REQUIRED")
     venue: Optional[str] = Field(None, description="Meeting location or venue (optional)")
+    attendees: Optional[list[str]] = Field(None, description="List of meeting attendees (optional)")
     
     @field_validator('business_issue')
     @classmethod

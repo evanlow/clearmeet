@@ -189,6 +189,12 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             end_time = request.form.get('end_time', '').strip()
             venue = request.form.get('venue', '').strip() or None
             
+            # Parse attendees from comma-separated string
+            attendees_str = request.form.get('attendees', '').strip()
+            attendees_list = None
+            if attendees_str:
+                attendees_list = [a.strip() for a in attendees_str.split(',') if a.strip()]
+            
             # Validate using Pydantic model
             meeting_objective = MeetingObjective(
                 business_issue=business_issue,
@@ -196,7 +202,8 @@ def create_app(config_name: Optional[str] = None) -> Flask:
                 expected_output=expected_output,
                 start_time=start_time,
                 end_time=end_time,
-                venue=venue
+                venue=venue,
+                attendees=attendees_list
             )
             
             # Store in session
@@ -726,6 +733,10 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             if planned_objective.get('venue') and not mom_data.get('venue'):
                 mom_data['venue'] = planned_objective.get('venue')
                 logger.info(f"Pre-populated venue from Step 1: {mom_data['venue']}")
+            
+            if planned_objective.get('attendees') and not mom_data.get('attendees'):
+                mom_data['attendees'] = planned_objective.get('attendees')
+                logger.info(f"Pre-populated attendees from Step 1: {len(mom_data['attendees'])} attendees")
 
         
         # Phase 2 Integration: Pass agenda items for display
