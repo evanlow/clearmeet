@@ -8,6 +8,7 @@ from flask_session import Session
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from cachelib import SimpleCache
 from werkzeug.utils import secure_filename
+from werkzeug.middleware.proxy_fix import ProxyFix
 import os
 import json
 import logging
@@ -53,18 +54,23 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     """
     app = Flask(__name__)
     
+    # Fix proxy headers for Heroku (required for secure cookies and HTTPS detection)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+    
     # Load configuration
     config_class = get_config(config_name)
     app.config.from_object(config_class)
     
-    # Initialize cachelib for server-side sessions (prevents cookie size limits)
-    app.config['SESSION_CACHELIB'] = SimpleCache()
-    logger.info(f"Session backend initialized: {app.config['SESSION_TYPE']}")
-    logger.info(f"Session cache instance: {type(app.config['SESSION_CACHELIB']).__name__}")
-    
-    # Initialize Flask-Session for server-side sessions
-    Session(app)
-    logger.info("Flask-Session initialized successfully")
+    # Initialize session backend based on SESSION_TYPE
+    session_type = app.config.get('SESSION_TYPE', 'null')
+    if session_type == 'cachelib':
+        # Server-side sessions (for development/single-process)
+        app.config['SESSION_CACHELIB'] = SimpleCache()
+        Session(app)
+        logger.info(f"Session backend: cachelib with SimpleCache (single-process only)")
+    else:
+        # Signed cookie sessions (for production with multiple workers)
+        logger.info(f"Session backend: Flask signed cookies (works with multiple workers)")
     
     # Initialize Flask-Login
     login_manager = LoginManager()

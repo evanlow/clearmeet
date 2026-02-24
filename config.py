@@ -29,10 +29,18 @@ class Config:
     TESTING: bool = False
     
     # Session Configuration
-    SESSION_TYPE: str = 'cachelib'  # Use cachelib for server-side sessions
-    SESSION_CACHELIB: object = None  # Will use SimpleCache (in-memory) by default
+    # Use environment variable to control session type (default: null = signed cookies)
+    # 'null' = Flask signed cookies (works with multiple Heroku workers)
+    # 'cachelib' = Server-side sessions (only for single-process dev)
+    SESSION_TYPE: str = os.getenv('SESSION_TYPE', 'null')
+    SESSION_CACHELIB: object = None  # Only used if SESSION_TYPE='cachelib'
     SESSION_PERMANENT: bool = False  # Don't use permanent sessions
     PERMANENT_SESSION_LIFETIME: int = int(os.getenv('PERMANENT_SESSION_LIFETIME', '3600'))
+    # SESSION_COOKIE_SECURE: Only set True in production with HTTPS
+    # Heroku provides HTTPS, and ProxyFix middleware handles the headers
+    SESSION_COOKIE_SECURE: bool = os.getenv('FLASK_ENV', 'development') == 'production'
+    SESSION_COOKIE_HTTPONLY: bool = True  # Prevent XSS attacks
+    SESSION_COOKIE_SAMESITE: str = 'Lax'  # CSRF protection
     
     # File Upload Configuration
     MAX_CONTENT_LENGTH: int = int(os.getenv('MAX_CONTENT_LENGTH', str(200 * 1024 * 1024)))  # 200MB (supports chunking)
