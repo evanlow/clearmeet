@@ -11,23 +11,6 @@ from io import BytesIO
 from app import create_app
 
 
-@pytest.fixture
-def app():
-    """Create test Flask application."""
-    app = create_app()
-    app.config['TESTING'] = True
-    app.config['SECRET_KEY'] = 'test-secret-key'
-    app.config['WTF_CSRF_ENABLED'] = False  # Disable CSRF for testing
-    app.config['SESSION_TYPE'] = 'null'  # Use simple sessions for testing
-    return app
-
-
-@pytest.fixture
-def client(app):
-    """Create test client."""
-    return app.test_client()
-
-
 class TestHealthRoute:
     """Tests for health check endpoint."""
     

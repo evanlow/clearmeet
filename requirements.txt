@@ -2,6 +2,7 @@
 Flask==3.0.0
 Werkzeug==3.0.1
 Flask-Session==0.8.0  # Server-side sessions for large MOM data
+Flask-Login==0.6.3  # Simple user authentication
 
 # OpenAI API
 openai>=1.54.0

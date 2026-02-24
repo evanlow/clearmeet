@@ -5,6 +5,7 @@ Main Flask app with routes for MOM generation workflow.
 """
 from flask import Flask, render_template, request, session, redirect, url_for, send_file, flash, g, jsonify
 from flask_session import Session
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from cachelib import SimpleCache
 from werkzeug.utils import secure_filename
 import os
@@ -33,6 +34,13 @@ _progress_lock = threading.Lock()
 _progress_state = {}
 
 
+class User(UserMixin):
+    """Simple user class for Flask-Login."""
+    def __init__(self, username: str):
+        self.id = username
+        self.username = username
+
+
 def create_app(config_name: Optional[str] = None) -> Flask:
     """
     Application factory function.
@@ -57,6 +65,20 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     # Initialize Flask-Session for server-side sessions
     Session(app)
     logger.info("Flask-Session initialized successfully")
+    
+    # Initialize Flask-Login
+    login_manager = LoginManager()
+    login_manager.init_app(app)
+    login_manager.login_view = 'login'
+    login_manager.login_message = 'Please log in to access ClearMeet.'
+    logger.info("Flask-Login initialized successfully")
+    
+    @login_manager.user_loader
+    def load_user(user_id: str) -> Optional[User]:
+        """Load user for Flask-Login."""
+        if user_id == app.config['AUTH_USERNAME']:
+            return User(user_id)
+        return None
     
     # Validate configuration
     is_valid, error_message = Config.validate_config()
@@ -118,7 +140,47 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             return handle.read()
     
     # Routes
+    @app.route('/login', methods=['GET', 'POST'])
+    def login():
+        """Login page and authentication."""
+        if current_user.is_authenticated:
+            return redirect(url_for('index'))
+        
+        if request.method == 'POST':
+            username = request.form.get('username', '').strip()
+            password = request.form.get('password', '').strip()
+            
+            # Simple credential check against environment variables
+            if (username == app.config['AUTH_USERNAME'] and 
+                password == app.config['AUTH_PASSWORD']):
+                user = User(username)
+                login_user(user)
+                logger.info(f"User '{username}' logged in successfully")
+                
+                # Redirect to next page or index
+                next_page = request.args.get('next')
+                if next_page and next_page.startswith('/'):
+                    return redirect(next_page)
+                return redirect(url_for('index'))
+            else:
+                logger.warning(f"Failed login attempt for username: '{username}'")
+                flash('Invalid username or password.', 'error')
+        
+        return render_template('login.html')
+    
+    @app.route('/logout')
+    @login_required
+    def logout():
+        """Logout and clear session."""
+        username = current_user.username if current_user.is_authenticated else 'unknown'
+        logout_user()
+        session.clear()
+        logger.info(f"User '{username}' logged out")
+        flash('You have been logged out successfully.', 'info')
+        return redirect(url_for('login'))
+    
     @app.route('/')
+    @login_required
     def index():
         """Landing page with input options."""
         # Only clear session if explicitly requested or if session is stale
@@ -158,6 +220,7 @@ def create_app(config_name: Optional[str] = None) -> Flask:
         }), 200
     
     @app.route('/debug/session', methods=['GET'])
+    @login_required
     def debug_session():
         """Debug endpoint to inspect current session state."""
         return jsonify({
@@ -173,12 +236,14 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     
     # Pre-Meeting Routes (Steps 1-2: Objective Definition + Agenda Building)
     @app.route('/meeting/new', methods=['GET'])
+    @login_required
     def define_objective():
         """Display structured objective definition form (Step 1)."""
         logger.info("Objective definition page accessed")
         return render_template('define_objective.html')
     
     @app.route('/meeting/clear', methods=['GET', 'POST'])
+    @login_required
     def clear_session():
         """Clear current session and start a new meeting."""
         session.clear()
@@ -187,6 +252,7 @@ def create_app(config_name: Optional[str] = None) -> Flask:
         return redirect(url_for('index'))
     
     @app.route('/meeting/define', methods=['POST'])
+    @login_required
     def save_objective():
         """Save meeting objective to session and proceed to agenda builder (Step 1 → 2)."""
         try:
@@ -228,6 +294,7 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             return redirect(url_for('define_objective'))
     
     @app.route('/meeting/agenda', methods=['GET'])
+    @login_required
     def build_agenda():
         """Display agenda builder interface (Step 2)."""
         # Require objective to be defined first
@@ -246,6 +313,7 @@ def create_app(config_name: Optional[str] = None) -> Flask:
         )
     
     @app.route('/meeting/agenda/generate', methods=['POST'])
+    @login_required
     def generate_agenda_ai():
         """Generate AI-assisted agenda suggestions (Step 2)."""
         try:
@@ -275,6 +343,7 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             return jsonify({"error": str(e)}), 500
     
     @app.route('/meeting/agenda/save', methods=['POST'])
+    @login_required
     def save_agenda():
         """Save final agenda and proceed to existing transcript workflow."""
         try:
@@ -311,6 +380,7 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             return jsonify({"error": str(e)}), 500
 
     @app.route('/meeting/agenda/export', methods=['GET'])
+    @login_required
     def export_agenda_pdf():
         """Export current agenda (Steps 1-2) to PDF."""
         agenda_items = session.get('agenda_items', [])
@@ -339,6 +409,7 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     
     @app.route('/process', methods=['GET', 'POST'])
     @app.route('/generate', methods=['POST'])
+    @login_required
     def process_input():
         """
         Process transcript input (text or audio file).
@@ -568,6 +639,7 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             return redirect(url_for('index'))
     
     @app.route('/progress')
+    @login_required
     def progress():
         """
         Server-Sent Events endpoint for progress updates during audio processing.
@@ -625,6 +697,7 @@ def create_app(config_name: Optional[str] = None) -> Flask:
         }
     
     @app.route('/edit')
+    @login_required
     def edit():
         """
         Edit page with structured editing and full text editor.
@@ -707,6 +780,7 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     
     @app.route('/update', methods=['POST'])
     @app.route('/edit', methods=['POST'])
+    @login_required
     def edit_submit():
         """
         Update MOM data from edit form.
@@ -838,6 +912,7 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             return redirect(url_for('edit'))
     
     @app.route('/validate')
+    @login_required
     def validate_page():
         """
         Validation checklist page.
@@ -903,6 +978,7 @@ def create_app(config_name: Optional[str] = None) -> Flask:
         )
 
     @app.route('/validate', methods=['POST'])
+    @login_required
     def validate_submit():
         """Validate checklist submission and mark session validated."""
         # SESSION TRACKING LOG
@@ -946,6 +1022,7 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     
     @app.route('/export', methods=['GET'])
     @app.route('/export_mom', methods=['GET', 'POST'])
+    @login_required
     def export_mom():
         """
         Export MOM to PDF.
@@ -1042,6 +1119,7 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             return redirect(url_for('validate_page'))
     
     @app.route('/preview')
+    @login_required
     def preview():
         """Preview page showing final MOM before export."""
         if 'mom_text' not in session:

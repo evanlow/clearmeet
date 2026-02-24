@@ -58,6 +58,10 @@ class Config:
     )
     WHISPER_MODEL: str = OPENAI_TRANSCRIBE_MODEL
     
+    # Authentication Configuration
+    AUTH_USERNAME: Optional[str] = os.getenv('AUTH_USERNAME')
+    AUTH_PASSWORD: Optional[str] = os.getenv('AUTH_PASSWORD')
+    
     @staticmethod
     def validate_config() -> tuple[bool, str]:
         """
@@ -68,6 +72,9 @@ class Config:
         """
         if not Config.OPENAI_API_KEY:
             return False, "OPENAI_API_KEY environment variable is required"
+        
+        if not Config.AUTH_USERNAME or not Config.AUTH_PASSWORD:
+            return False, "AUTH_USERNAME and AUTH_PASSWORD environment variables are required"
         
         if not Config.SECRET_KEY or Config.SECRET_KEY == 'dev-secret-key-change-in-production':
             if not Config.DEBUG:
@@ -96,6 +103,8 @@ class TestConfig(Config):
     DEBUG = True
     OPENAI_API_KEY = 'test-api-key'
     SECRET_KEY = 'test-secret-key'
+    AUTH_USERNAME = 'test-user'
+    AUTH_PASSWORD = 'test-password'
 
 
 # Configuration dictionary

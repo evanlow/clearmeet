@@ -19,23 +19,6 @@ from app import create_app
 
 
 @pytest.fixture
-def app():
-    """Create test Flask application."""
-    app = create_app()
-    app.config['TESTING'] = True
-    app.config['SECRET_KEY'] = 'test-secret-key'
-    app.config['WTF_CSRF_ENABLED'] = False
-    app.config['SESSION_TYPE'] = 'filesystem'  # Use filesystem for persistent sessions
-    return app
-
-
-@pytest.fixture
-def client(app):
-    """Create test client with session support."""
-    return app.test_client()
-
-
-@pytest.fixture
 def sample_transcript():
     """Sample meeting transcript with 100+ words."""
     return """
