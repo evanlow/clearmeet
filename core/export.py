@@ -406,6 +406,19 @@ class PDFExporter:
                 elif line.lower() != 'none':
                     story.append(Paragraph(self._escape_html(line), self.styles['body']))
                     
+            elif current_section == 'Planned Agenda':
+                # List planned agenda items
+                if line[0:2].rstrip('.').isdigit():
+                    # Main agenda item (numbered)
+                    agenda_text = line[line.find('.')+1:].strip() if '.' in line else line
+                    story.append(Paragraph(f'{self._escape_html(line)}', self.styles['list']))
+                elif line.startswith('Total:'):
+                    # Total duration line
+                    story.append(Paragraph(f'<b>{self._escape_html(line)}</b>', self.styles['list']))
+                elif line.lower() != 'none' and not line.startswith('Audit:'):
+                    # Description lines (indented)
+                    story.append(Paragraph(f'{self._escape_html(line)}', self.styles['body']))
+                    
             elif current_section == 'Key Decisions' or current_section == 'Decisions':
                 # List decisions with blue accent
                 if line[0:2].rstrip('.').isdigit():
