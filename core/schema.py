@@ -213,6 +213,8 @@ class MeetingMOM(BaseModel):
     end_time: Optional[str] = Field(None, description="Meeting end time in ISO 8601 format (YYYY-MM-DDTHH:MM)")
     venue: Optional[str] = Field(None, description="Meeting location or venue name")
     objective: str = Field(..., min_length=10, description="Meeting purpose and objective")
+    executive_summary: Optional[str] = Field(None, description="2-3 sentence executive summary of the entire meeting")
+    discussion_summary: Optional[str] = Field(None, description="Narrative summary of discussions that occurred during the meeting")
     decisions: list[Decision] = Field(..., description="Decisions made during meeting")
     action_items: list[ActionItem] = Field(..., description="Action items with owners")
 
@@ -311,6 +313,14 @@ class MeetingMOM(BaseModel):
                     "type": "string",
                     "description": "Meeting objective/purpose (minimum 10 characters)"
                 },
+                "executive_summary": {
+                    "type": "string",
+                    "description": "2-3 sentence executive summary of the entire meeting (optional)"
+                },
+                "discussion_summary": {
+                    "type": "string",
+                    "description": "Narrative summary of discussions that occurred during the meeting (optional)"
+                },
                 "attendees": {
                     "type": "array",
                     "items": {"type": "string"},
@@ -365,6 +375,8 @@ class MeetingMOM(BaseModel):
                     "title": "Q2 Planning Meeting",
                     "date": "2026-02-16",
                     "objective": "Quarterly planning meeting to review Q1 performance and set Q2 goals",
+                    "executive_summary": "The team reviewed Q1 results and approved a 15% budget increase for Q2 marketing efforts. Product launch was postponed to March 15 to ensure quality standards are met.",
+                    "discussion_summary": "The team discussed Q1 performance metrics, noting a 12% revenue increase but expressing concerns about product readiness. After thorough discussion of marketing ROI data, consensus was reached on budget expansion. The product team presented launch readiness assessment, leading to the decision to delay for additional testing.",
                     "attendees": ["Alice Johnson", "Bob Smith", "Carol Williams"],
                     "decisions": [
                         {"text": "Approved 15% budget increase for Q2 marketing"},

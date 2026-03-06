@@ -147,6 +147,10 @@ Rules:
 - If an owner or deadline is missing, set it to "".
 - When any owner/deadline is missing, add a note in `notes` and add a flag in `confidentiality_flags`.
 - Use professional business language and be specific.
+
+Summary Requirements:
+- executive_summary: Provide a 2-3 sentence high-level overview of the entire meeting, capturing the key outcomes and decisions.
+- discussion_summary: Provide a narrative summary of the discussions that occurred during the meeting. Focus on what was discussed, key points raised, concerns mentioned, and how the group arrived at decisions. This should flow naturally and provide context for the decisions and action items.
 """
 
     user_sections = []

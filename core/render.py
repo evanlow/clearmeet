@@ -128,6 +128,13 @@ def mom_to_text(mom: MeetingMOM, agenda_items: Optional[list[dict]] = None) -> s
         lines.append(f"Venue: {mom.venue}")
 
     lines.extend(["", "Objective:", f"  {mom.objective}", ""])
+    
+    # Add Executive Summary if available
+    if mom.executive_summary:
+        lines.append("Executive Summary:")
+        lines.append(f"  {mom.executive_summary}")
+        lines.append("")
+    
     lines.append("Attendees:")
 
     if attendees:
@@ -148,6 +155,12 @@ def mom_to_text(mom: MeetingMOM, agenda_items: Optional[list[dict]] = None) -> s
             if item.get('description'):
                 lines.append(f"     {item.get('description')}")
         lines.append(f"  Total: {total_duration}min")
+
+    # Add Discussion Summary if available
+    if mom.discussion_summary:
+        lines.append("")
+        lines.append("Discussion Summary:")
+        lines.append(f"  {mom.discussion_summary}")
 
     lines.append("")
     lines.append("Key Decisions:")

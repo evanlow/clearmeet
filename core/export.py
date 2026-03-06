@@ -406,6 +406,16 @@ class PDFExporter:
                 elif line.lower() != 'none':
                     story.append(Paragraph(self._escape_html(line), self.styles['body']))
                     
+            elif current_section == 'Executive Summary':
+                # Render executive summary as body text
+                if not line.startswith(('Audit:', '#')):
+                    story.append(Paragraph(self._escape_html(line), self.styles['body']))
+                    
+            elif current_section == 'Discussion Summary':
+                # Render discussion summary as body text
+                if not line.startswith(('Audit:', '#')):
+                    story.append(Paragraph(self._escape_html(line), self.styles['body']))
+                    
             elif current_section == 'Planned Agenda':
                 # List planned agenda items
                 if line[0:2].rstrip('.').isdigit():

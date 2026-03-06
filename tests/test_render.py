@@ -107,3 +107,58 @@ def test_mom_to_text_omits_both_when_empty():
     assert "Notes:" not in text
     assert "Action Items:" in text  # Should still have required sections
     assert "Audit:" in text
+
+def test_mom_to_text_includes_executive_summary_when_present():
+    """Test that Executive Summary section appears when provided."""
+    mom = _sample_mom()
+    mom.executive_summary = "The team reviewed Q1 results and approved budget increase for Q2 marketing."
+    
+    text = mom_to_text(mom)
+    
+    assert "Executive Summary:" in text
+    assert "The team reviewed Q1 results and approved budget increase for Q2 marketing." in text
+
+
+def test_mom_to_text_omits_executive_summary_when_absent():
+    """Test that Executive Summary section is omitted when not provided."""
+    mom = _sample_mom()
+    mom.executive_summary = None
+    
+    text = mom_to_text(mom)
+    
+    assert "Executive Summary:" not in text
+
+
+def test_mom_to_text_includes_discussion_summary_when_present():
+    """Test that Discussion Summary section appears when provided."""
+    mom = _sample_mom()
+    mom.discussion_summary = "The team discussed Q1 performance metrics and marketing ROI data."
+    
+    text = mom_to_text(mom)
+    
+    assert "Discussion Summary:" in text
+    assert "The team discussed Q1 performance metrics and marketing ROI data." in text
+
+
+def test_mom_to_text_omits_discussion_summary_when_absent():
+    """Test that Discussion Summary section is omitted when not provided."""
+    mom = _sample_mom()
+    mom.discussion_summary = None
+    
+    text = mom_to_text(mom)
+    
+    assert "Discussion Summary:" not in text
+
+
+def test_mom_to_text_includes_both_summaries():
+    """Test that both summary sections appear when provided."""
+    mom = _sample_mom()
+    mom.executive_summary = "Executive summary here."
+    mom.discussion_summary = "Discussion summary here."
+    
+    text = mom_to_text(mom)
+    
+    assert "Executive Summary:" in text
+    assert "Executive summary here." in text
+    assert "Discussion Summary:" in text
+    assert "Discussion summary here." in text

@@ -1310,3 +1310,80 @@ Next Steps:
 - Consider adding PDF content verification tests using PyPDF2 (optional enhancement)
 - User to perform manual PDF export test to confirm fix resolves the issue
 - Ready to commit if manual verification successful
+---
+
+## Session: 2026-03-06 / feature-discussion-summaries
+
+Checkpoint Type: implementation
+Trigger Event: Feature enhancement approved - add Executive Summary and Discussion Summary to MOM format
+
+Directive Compliance KPI: 5/7 green
+- Green: #1 (tracking live), #2 (venv verified), #3 (baseline: 177/177, 0 warnings), #4 (post-change: 182/182, 0 warnings), #7 (recording status)
+- Yellow: #5 (UI changes made, manual testing pending), #6 (no form changes)
+- Red: none
+
+KPI Delta Since Previous Entry:
+- #4: 177 tests ? 182 tests (added 5 new tests for summary fields)
+- #5: no change ? Yellow (UI changes made, manual testing required before commit)
+
+Checklist Status:
+1. ? Track directive compliance live - ACTIVE
+2. ? Verify venv before Python actions - venv verified and active
+3. ? Confirm baseline tests pass clean - 177/177 passed, 0 warnings
+4. ? Require post-change tests clean - 182/182 passed, 0 warnings (5 new tests added)
+5. ?? Enforce UI manual smoke checks - UI changes made, testing REQUIRED before commit
+6. ? Validate input handling: Frontend + Backend - no form changes in this feature
+7. ? Record compliance status in updates - ACTIVE
+
+Completed Actions:
+- User requested gap analysis: "based on commercial minutes of meeting format, what is missing in clearmeet?"
+- Identified major gap: Discussion Summary (narrative of what was discussed)
+- Recommended hybrid approach: Executive Summary (2-3 sentences) + Discussion Summary (narrative)
+- User approved implementation: "yes please - implement this"
+- **Schema Changes (core/schema.py):**
+  - Added executive_summary: Optional[str] field to MeetingMOM model
+  - Added discussion_summary: Optional[str] field to MeetingMOM model
+  - Updated model_config example to include sample summaries
+  - Updated get_json_schema_for_llm() to include new fields in LLM schema
+- **LLM Prompt Enhancement (core/llm.py):**
+  - Enhanced system prompt with summary requirements
+  - Added instructions for executive_summary: 2-3 sentence high-level overview
+  - Added instructions for discussion_summary: narrative of discussions, key points, concerns, decision context
+- **Rendering Updates (core/render.py):**
+  - Added Executive Summary section after Objective (if present)
+  - Added Discussion Summary section after Planned Agenda, before Key Decisions (if present)
+  - Both sections are optional and omitted if not provided
+- **PDF Export Updates (core/export.py):**
+  - Added 'Executive Summary' section handler (renders as body text)
+  - Added 'Discussion Summary' section handler (renders as body text)
+- **Test Coverage (tests/test_render.py):**
+  - Added 5 new tests for summary rendering
+
+Code Changes:
+- File: core/schema.py - Added executive_summary and discussion_summary optional fields
+- File: core/llm.py - Enhanced system prompt with summary requirements
+- File: core/render.py - Added conditional sections for both summaries
+- File: core/export.py - Added section handlers for PDF export
+- File: tests/test_render.py - Added 5 new test functions
+
+Test Results:
+- Baseline: 177/177 passed, 0 warnings ?
+- Post-change: 182/182 passed, 0 warnings ?
+- New test coverage: 5 additional tests for summary functionality
+
+User Impact:
+- MOM now includes Executive Summary (2-3 sentences) and Discussion Summary (narrative)
+- Aligns with commercial MOM best practices
+- Provides context for decisions and action items
+- Backward compatible with existing MOMs
+
+Risks / Blockers / Corrections:
+- ?? **BLOCKER**: UI manual testing required before commit (Principle 5)
+
+Next Steps:
+- **REQUIRED**: Manual UI testing workflow:
+  1. Upload sample audio/transcript
+  2. Process through Step 3 (Generate MOM)
+  3. Verify summaries appear in MOM preview
+  4. Export to PDF and verify formatting
+- After manual testing passes ? commit changes
