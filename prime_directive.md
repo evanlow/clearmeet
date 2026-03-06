@@ -168,6 +168,40 @@ pip install -r requirements.txt
 - Chaining with semicolons creates sub-shells that don't persist environment changes
 - Each terminal command invocation is a fresh session unless activation is explicit
 
+**CRITICAL - DO NOT CREATE NEW VENV WHEN ONE EXISTS:**
+```powershell
+# ❌ NEVER - Do not create new venv if project already has one
+# Check for existing venv indicators FIRST:
+# - Scripts/ directory exists
+# - Lib/ directory exists  
+# - Include/ directory exists
+# - pyvenv.cfg file exists
+# If these exist at project root, the venv is already set up!
+
+# ❌ WRONG - Creating new venv when one exists
+python -m venv .venv  # Creates duplicate venv!
+configure_python_environment  # Tool that creates new venv!
+
+# ✅ CORRECT - Use existing venv
+.\Scripts\Activate.ps1  # Just activate what exists
+pip install <missing-package>  # Install missing dependencies
+```
+
+**Detecting Existing Virtual Environment:**
+1. Check if `Scripts/`, `Lib/`, `Include/`, `pyvenv.cfg` exist at project root
+2. If YES → venv exists, just activate it with `.\Scripts\Activate.ps1`
+3. If NO → venv doesn't exist, safe to create one
+4. **Common mistake:** Seeing "ModuleNotFoundError" and creating new venv
+   - **Correct response:** Install missing package: `pip install <package>`
+   - **Wrong response:** Create new venv with configure_python_environment
+
+**Why This Matters:**
+- Creating duplicate venv wastes disk space (hundreds of MB)
+- Creates confusion about which venv to use
+- May have different package versions than existing venv
+- Tests may pass in one venv but fail in another
+- **Never use configure_python_environment or python -m venv if venv structure exists**
+
 **Background Tasks and Virtual Environments:**
 ```powershell
 # ❌ WRONG - Background tasks start NEW sessions without venv
@@ -193,6 +227,8 @@ python -m streamlit run app.py  # Command 2 in same session
 
 | Scenario | Method | Example |
 |----------|--------|---------|
+| **Venv already exists (Scripts/, Lib/, etc.)** | **Activate existing venv** | **`.\Scripts\Activate.ps1` → never create new one** |
+| **Missing package error** | **Install package** | **`pip install <package>` → don't create new venv** |
 | Background task (server, watch mode) | Direct Scripts path | `.\Scripts\streamlit.exe run app.py` |
 | Quick one-off command | Direct Scripts path | `.\Scripts\python.exe -m pytest` |
 | Multiple sequential commands | Activate once, then run | Activate → run command 1 → run command 2 |
@@ -206,8 +242,14 @@ python -m streamlit run app.py  # Command 2 in same session
 - Chain activation with other commands using semicolons (`;`)
 - Run background tasks assuming they inherit venv activation
 - Try to install packages when tests already passed (indicates packages exist!)
+- Create new virtual environment (`.venv`, `venv`, etc.) when Scripts/Lib/Include/pyvenv.cfg already exist
+- Use `configure_python_environment` tool when venv structure already exists at project root
+- Use `python -m venv` command when virtual environment is already set up
 
 **✅ ALWAYS:**
+- **Check for existing venv FIRST** (Scripts/, Lib/, Include/, pyvenv.cfg in project root)
+- If venv exists → activate it, don't create a new one
+- If missing package → `pip install <package>`, don't create new venv
 - Run activation as a standalone command first (if not using Scripts paths)
 - Verify Python executable path AFTER activation in a new command
 - Use `.\Scripts\executable.exe` for background tasks or when activation is unclear
