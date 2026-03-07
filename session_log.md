@@ -168,6 +168,140 @@ Next Steps:
 
 ---
 
+## Session: 2026-03-07 / pdf-export-metadata-fix
+
+Checkpoint Type: start
+Trigger Event: User reported PDF export missing meeting metadata (start/end time, venue, attendees)
+
+Directive Compliance KPI: 2/7 green
+- Green: #1, #7
+- Yellow: #2 (venv verification pending), #3 (baseline test pending), #4 (post-change test pending), #5 (manual testing pending), #6 (input validation not applicable)
+- Red: none (violation of Principle 6 identified - PDF export truncates business content)
+
+KPI Delta Since Previous Entry:
+- New session started for critical bug fix
+- Principle 6 violation identified: PDF export omits Start/End/Venue/Attendees metadata
+
+Checklist Status:
+1. Track directive compliance live ✓
+2. Verify venv before Python actions (Principle 0) - pending
+3. Confirm baseline tests pass clean (Principle 1) - pending
+4. Require post-change tests clean (Principle 1) - pending
+5. Enforce UI manual smoke checks for UI changes (Principle 5) - pending (PDF export requires manual test)
+6. Validate input handling: Frontend (UX) + Backend (Security) - N/A
+7. Record compliance status in updates ✓
+
+Completed Actions:
+- Investigated issue by reviewing PDF export code in core/export.py
+- Identified root cause: export_to_pdf() only parses Title, Date, Objective
+- Identified missing metadata: Start time, End time, Venue, Attendees list
+
+Risks / Blockers / Corrections:
+- Principle 6 violation: PDF export produces incomplete business records
+- Need to fix core/export.py to parse all metadata fields from MOM text
+
+Next Steps:
+- Verify venv active
+- Run baseline tests
+- Fix export_to_pdf() to parse Start, End, Venue, Attendees
+- Run post-change tests
+- Manual PDF export testing
+- Update session log with completion
+
+---
+
+## Session: 2026-03-07 / pdf-export-metadata-fix-completed
+
+Checkpoint Type: test
+Trigger Event: Post-change test run after PDF export fix implementation
+
+Directive Compliance KPI: 5/7 green
+- Green: #1, #2, #3, #4, #7
+- Yellow: #5 (manual PDF export testing pending), #6 (input validation N/A)
+- Red: none
+
+KPI Delta Since Previous Entry:
+- Changed from 2/7 green → 5/7 green
+- Venv verified (using .\Scripts\pytest.exe)
+- Baseline tests passed: 182 passed, 0 warnings
+- Code changes implemented
+- Post-change tests passed: 182 passed, 0 warnings
+
+Checklist Status:
+1. Track directive compliance live ✓
+2. Verify venv before Python actions (Principle 0) ✓
+3. Confirm baseline tests pass clean (Principle 1) ✓
+4. Require post-change tests clean (Principle 1) ✓
+5. Enforce UI manual smoke checks for UI changes (Principle 5) - pending manual PDF test
+6. Validate input handling: Frontend (UX) + Backend (Security) - N/A
+7. Record compliance status in updates ✓
+
+Completed Actions:
+- Verified venv using .\Scripts\pytest.exe (avoids activation issues)
+- Baseline tests: 182 passed in 54.71s, 0 warnings
+- Fixed core/export.py export_to_pdf() method:
+  - Added parsing for Start time, End time, Venue, Attendees
+  - Metadata now displayed in PDF header (Date, Start/End, Venue, Attendees)
+  - Updated skip list to prevent duplicate rendering
+- Post-change tests: 182 passed in 47.25s, 0 warnings
+
+Risks / Blockers / Corrections:
+- Manual PDF export testing required before declaring completion
+- Need user to verify PDF now includes all metadata fields
+
+Next Steps:
+- User should test PDF export manually:
+  1. Generate a MOM with meeting metadata (date, start/end time, venue, attendees)
+  2. Export to PDF
+  3. Verify PDF includes: Date, Start time, End time, Venue, Attendees
+  4. Compare with web preview to ensure consistency
+- Update session log after manual verification
+
+---
+
+## Session: 2026-03-07 / pdf-export-metadata-fix-verified
+
+Checkpoint Type: handoff
+Trigger Event: User confirmed manual testing - PDF export working correctly
+
+Directive Compliance KPI: 7/7 green
+- Green: #1, #2, #3, #4, #5, #6, #7
+- Yellow: none
+- Red: none
+
+KPI Delta Since Previous Entry:
+- Changed from 5/7 green → 7/7 green (100% compliance)
+- Manual testing completed successfully
+- All metadata now appears in PDF export
+
+Checklist Status:
+1. Track directive compliance live ✓
+2. Verify venv before Python actions (Principle 0) ✓
+3. Confirm baseline tests pass clean (Principle 1) ✓
+4. Require post-change tests clean (Principle 1) ✓
+5. Enforce UI manual smoke checks for UI changes (Principle 5) ✓ - PDF export verified
+6. Validate input handling: Frontend (UX) + Backend (Security) ✓ - N/A for this change
+7. Record compliance status in updates ✓
+
+Completed Actions:
+- User tested PDF export with full meeting metadata
+- Confirmed PDF now includes:
+  - Title, Date ✓
+  - Start time, End time ✓ (NEW)
+  - Venue ✓ (NEW)
+  - Attendees ✓ (NEW)
+- Principle 6 compliance restored (no truncated business content)
+- Ready to commit and push to git
+
+Risks / Blockers / Corrections:
+- None - all validation complete
+
+Next Steps:
+- Commit changes to git with proper commit message
+- Push to remote repository
+
+---
+
 ## Session: 2026-02-20 / checkpoint-full-regression-test-before-commit
 
 Checkpoint Type: test

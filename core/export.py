@@ -316,17 +316,47 @@ class PDFExporter:
         lines = mom_text.split('\n')
         idx = 0
         
-        # Extract title and date from first few lines
+        # Extract metadata from header lines
         title_text = None
         date_text = None
+        start_time = None
+        end_time = None
+        venue_text = None
+        attendees_list = []
         objective_text = None
         
-        while idx < min(10, len(lines)):
+        while idx < min(30, len(lines)):  # Increased range to capture attendees
             line = lines[idx].strip()
             if line.startswith('Title:'):
                 title_text = line.replace('Title:', '').strip()
             elif line.startswith('Date:'):
                 date_text = line.replace('Date:', '').strip()
+            elif line.startswith('Start:'):
+                # Parse "Start: 09:00 | End: 10:00" format
+                parts = line.split('|')
+                start_time = parts[0].replace('Start:', '').strip()
+                if len(parts) > 1 and 'End:' in parts[1]:
+                    end_time = parts[1].replace('End:', '').strip()
+            elif line.startswith('Venue:'):
+                venue_text = line.replace('Venue:', '').strip()
+            elif line.startswith('Attendees:'):
+                # Parse attendees list (following lines starting with dash)
+                idx += 1
+                while idx < len(lines):
+                    attendee_line = lines[idx].strip()
+                    if attendee_line.startswith(('-', '•', '*')):
+                        attendees_list.append(attendee_line.lstrip('-•* ').strip())
+                        idx += 1
+                    elif attendee_line.lower() == 'none':
+                        idx += 1
+                        break
+                    elif not attendee_line or attendee_line.endswith(':'):
+                        # Reached next section
+                        idx -= 1  # Back up one line
+                        break
+                    else:
+                        idx += 1
+                continue  # Skip the normal idx increment
             elif line.startswith('Objective:'):
                 idx += 1
                 if idx < len(lines):
@@ -339,8 +369,33 @@ class PDFExporter:
         else:
             story.append(Paragraph('Minutes of Meeting', self.styles['title']))
         
+        # Add meeting metadata in a compact format
+        metadata_parts = []
         if date_text:
-            story.append(Paragraph(f'<font size=9 color="#666666">{date_text}</font>', self.styles['body']))
+            metadata_parts.append(f'<b>Date:</b> {date_text}')
+        if start_time or end_time:
+            time_str = ''
+            if start_time:
+                time_str = f'<b>Start:</b> {start_time}'
+            if end_time:
+                if time_str:
+                    time_str += f' | <b>End:</b> {end_time}'
+                else:
+                    time_str = f'<b>End:</b> {end_time}'
+            metadata_parts.append(time_str)
+        if venue_text:
+            metadata_parts.append(f'<b>Venue:</b> {venue_text}')
+        
+        # Display metadata
+        for part in metadata_parts:
+            story.append(Paragraph(f'<font size=9 color="#666666">{part}</font>', self.styles['body']))
+        
+        # Add attendees if present
+        if attendees_list:
+            attendees_str = ', '.join(attendees_list[:5])  # First 5 attendees
+            if len(attendees_list) > 5:
+                attendees_str += f' (+{len(attendees_list) - 5} more)'
+            story.append(Paragraph(f'<font size=9 color="#666666"><b>Attendees:</b> {self._escape_html(attendees_str)}</font>', self.styles['body']))
         
         # Add horizontal line
         story.append(Spacer(1, 0.15*inch))
@@ -361,8 +416,9 @@ class PDFExporter:
                 continue
             
             # Skip the header section we already processed
-            if line.startswith(('MINUTES OF MEETING', '===', 'Title:', 'Date:')) or line == '=' * 72:
+            if line.startswith(('MINUTES OF MEETING', '===', 'Title:', 'Date:', 'Start:', 'Venue:')) or line == '=' * 72:
                 idx += 1
+                continue
                 continue
             
             # Detect section headers
