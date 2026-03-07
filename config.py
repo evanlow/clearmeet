@@ -34,7 +34,8 @@ class Config:
     # Heroku: REDIS_URL set → uses Redis (handles large MOM data)
     _redis_url: Optional[str] = os.getenv('REDIS_URL')
     SESSION_TYPE: Optional[str] = os.getenv('SESSION_TYPE') or ('redis' if _redis_url else None)
-    SESSION_REDIS: Optional[str] = _redis_url  # Redis connection string
+    # SESSION_REDIS is set in app.py create_app() as a redis.Redis client instance
+    # Flask-Session requires a client object, not a URL string
     SESSION_CACHELIB: object = None  # Only used if SESSION_TYPE='cachelib'
     SESSION_PERMANENT: bool = False  # Don't use permanent sessions
     PERMANENT_SESSION_LIFETIME: int = int(os.getenv('PERMANENT_SESSION_LIFETIME', '3600'))

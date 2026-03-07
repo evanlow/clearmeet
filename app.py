@@ -65,6 +65,14 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     session_type = app.config.get('SESSION_TYPE')
     if session_type == 'redis':
         # Redis sessions (Heroku production - handles large MOM data >4KB)
+        # Flask-Session requires SESSION_REDIS to be a redis.Redis client instance, not a URL string
+        import redis
+        redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
+        # Heroku Redis uses rediss:// (TLS) with self-signed certs
+        if redis_url.startswith('rediss://'):
+            app.config['SESSION_REDIS'] = redis.Redis.from_url(redis_url, ssl_cert_reqs=None)
+        else:
+            app.config['SESSION_REDIS'] = redis.Redis.from_url(redis_url)
         Session(app)
         logger.info(f"Session backend: Redis (large session support for production)")
     elif session_type == 'cachelib':
