@@ -66,11 +66,13 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     if session_type == 'cachelib':
         # Server-side sessions (for development/single-process)
         app.config['SESSION_CACHELIB'] = SimpleCache()
-        Session(app)
         logger.info(f"Session backend: cachelib with SimpleCache (single-process only)")
     else:
         # Signed cookie sessions (for production with multiple workers)
         logger.info(f"Session backend: Flask signed cookies (works with multiple workers)")
+    
+    # Initialize Flask-Session (required even for 'null' type to apply config)
+    Session(app)
     
     # Initialize Flask-Login
     login_manager = LoginManager()
