@@ -62,17 +62,20 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     app.config.from_object(config_class)
     
     # Initialize session backend based on SESSION_TYPE
-    session_type = app.config.get('SESSION_TYPE', 'null')
+    session_type = app.config.get('SESSION_TYPE')
     if session_type == 'cachelib':
         # Server-side sessions (for development/single-process)
         app.config['SESSION_CACHELIB'] = SimpleCache()
+        Session(app)
         logger.info(f"Session backend: cachelib with SimpleCache (single-process only)")
-    else:
+    elif session_type is None or session_type == '':
         # Signed cookie sessions (for production with multiple workers)
+        # Set SESSION_TYPE to None explicitly so Flask-Session doesn't interfere
+        app.config['SESSION_TYPE'] = None
+        # DO NOT call Session(app) - use Flask's built-in signed cookie sessions
         logger.info(f"Session backend: Flask signed cookies (works with multiple workers)")
-    
-    # Initialize Flask-Session (required even for 'null' type to apply config)
-    Session(app)
+    else:
+        raise ValueError(f"Unsupported SESSION_TYPE: {session_type}. Use 'cachelib' or leave unset.")
     
     # Initialize Flask-Login
     login_manager = LoginManager()

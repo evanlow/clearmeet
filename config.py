@@ -29,10 +29,10 @@ class Config:
     TESTING: bool = False
     
     # Session Configuration
-    # Use environment variable to control session type (default: null = signed cookies)
-    # 'null' = Flask signed cookies (works with multiple Heroku workers)
+    # Use environment variable to control session type (default: None = signed cookies)
+    # None or unset = Flask signed cookies (works with multiple Heroku workers)
     # 'cachelib' = Server-side sessions (only for single-process dev)
-    SESSION_TYPE: str = os.getenv('SESSION_TYPE', 'null')
+    SESSION_TYPE: Optional[str] = os.getenv('SESSION_TYPE')
     SESSION_CACHELIB: object = None  # Only used if SESSION_TYPE='cachelib'
     SESSION_PERMANENT: bool = False  # Don't use permanent sessions
     PERMANENT_SESSION_LIFETIME: int = int(os.getenv('PERMANENT_SESSION_LIFETIME', '3600'))
