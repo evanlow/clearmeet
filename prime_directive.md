@@ -1,6 +1,6 @@
 # Prime Directive: Development Guidelines
 
-**Last Updated:** February 20, 2026  
+**Last Updated:** March 7, 2026  
 **Purpose:** Ensure high-quality, maintainable code by learning from past experiences and establishing best practices for all team members, AI agents, and contributors.
 
 **Scope:** This directive is designed for use across all software projects. Project-specific case studies and stack/tool profiles are explicitly labeled as optional examples.
@@ -17,6 +17,7 @@ Pre-Commit Checklist:
 For Backend-Only Changes:
 □ Tests added/updated for new code
 □ All tests pass
+□ Any strange behavior investigated (Principle 8)
 → Ready to commit
 
 For UI Changes (HTML/CSS/JavaScript):
@@ -26,6 +27,7 @@ For UI Changes (HTML/CSS/JavaScript):
 □ Critical user flows tested
 □ Input validation: Frontend (UX) + Backend (Security) (Principle 7)
 □ Date/time inputs use proper controls (datetime-local or picker library)
+□ Any strange behavior investigated (Principle 8)
 □ Manual testing documented in commit message
 → Ready to commit
 
@@ -55,7 +57,7 @@ Use a live compliance score throughout every working session to make adherence o
 
 ### KPI Score Model
 
-**Score format:** `X/7 green`
+**Score format:** `X/8 green`
 
 - **Green** = Requirement satisfied and evidenced in this session
 - **Yellow** = Not yet applicable or pending the relevant step
@@ -69,7 +71,8 @@ Use a live compliance score throughout every working session to make adherence o
 4. **Require post-change tests clean** (Principle 1)
 5. **Enforce UI manual smoke checks** for UI changes (Principle 5)
 6. **Validate input handling: Frontend (UX) + Backend (Security)** for form inputs (Principle 7)
-7. **Record compliance status in updates**
+7. **Investigate anomalies, don't work around them** (Principle 8)
+8. **Record compliance status in updates**
 
 ### Session Reporting Protocol
 
@@ -933,6 +936,118 @@ def validate_file_upload(file):
 - [ ] Test with invalid formats → 400/422 error
 - [ ] Test with boundary values (min, max) → correct behavior
 - [ ] Test with malicious inputs (XSS, SQL injection attempts) → sanitized/blocked
+
+---
+
+### 8. **Investigate Anomalies - Don't Work Around Them**
+**CRITICAL:** If something seems wrong, strange, or requires a workaround - it IS wrong. Stop and investigate.
+
+**The Rule:**
+```
+IF behavior seems unexpected OR requires a workaround:
+  THEN:
+    1. STOP forward progress immediately
+    2. Document the strange behavior
+    3. Investigate root cause thoroughly
+    4. Fix properly OR confirm it's intentional
+    5. ONLY THEN continue with your task
+```
+
+**Why This Matters:**
+- Workarounds mask problems, they don't solve them
+- "Strange" is a red flag, not a quirk to accept
+- 2 minutes investigating now prevents hours debugging later
+- Small issues compound into major blockers
+
+**Real Example - The .gitignore Incident:**
+```bash
+# ❌ WRONG Response
+$ git add core/export.py
+# Error: The following paths are ignored by .gitignore: core
+# Thought: "That's weird... let me try a workaround"
+$ git add -u  # Works! Moving on...
+# Result: Broken .gitignore with wildcard '*' went unfixed
+
+# ✅ CORRECT Response  
+$ git add core/export.py
+# Error: The following paths are ignored by .gitignore: core
+# Thought: "That's wrong. Why is 'core' ignored?"
+$ cat .gitignore
+# Found: wildcard '*' ignoring EVERYTHING
+# Action: Fix .gitignore properly, verify, then continue
+```
+
+**Common "Strange" Signals:**
+- Error messages that disappear with a different command
+- Tests that "randomly" pass/fail
+- "It works on my machine" but fails elsewhere
+- Needing sudo/admin rights where you shouldn't
+- Circular imports that "just work"
+- Settings that only work in a specific order
+- Code that requires comments like "don't change this or it breaks"
+- Dependencies installed multiple times
+
+**The Cost of Ignoring Anomalies:**
+
+| Issue | Workaround Time | Investigation Time | Cost of Ignoring |
+|-------|-----------------|-------------------|------------------|
+| `.gitignore` broken | 30 seconds | 2 minutes | Can't add new files (project-blocking) |
+| Import error | 1 minute | 5 minutes | Wrong package version breaks production |
+| Test flakiness | Skip the test | 10 minutes | Regression goes undetected |
+| Permission error | Run as admin | 3 minutes | Security vulnerability in deployment |
+
+**Investigation Protocol:**
+
+1. **Capture the anomaly**
+   ```bash
+   # Save error messages
+   command 2>&1 | tee error.log
+   
+   # Document unexpected behavior
+   echo "Expected X, got Y because Z" >> investigation.md
+   ```
+
+2. **Form hypothesis**
+   - What should happen?
+   - What actually happens?
+   - What's different?
+
+3. **Test hypothesis**
+   - Read config files
+   - Check environment variables  
+   - Review recent changes
+   - Search codebase for similar patterns
+
+4. **Fix root cause**
+   - Don't patch symptoms
+   - Fix the underlying issue
+   - Verify fix with tests
+   - Document why it happened
+
+5. **Prevent recurrence**
+   - Add checks/validation
+   - Update documentation
+   - Add to Prime Directive if broadly applicable
+
+**❌ Never:**
+- Dismiss errors as "probably nothing"
+- Use workarounds without understanding why they're needed
+- Proceed when something feels wrong
+- Skip investigation "to save time"
+- Leave TODO comments for weird behavior
+- Assume "it's always been like that"
+
+**✅ Always:**
+- Treat "strange" as a bug until proven otherwise
+- Investigate before implementing workarounds
+- Document both the problem AND the solution
+- Share findings with team (update Prime Directive)
+- Fix properly, not quickly
+- Trust your instincts - if it feels wrong, investigate
+
+**Remember: "It works" ≠ "It's correct"**
+
+Code that works despite being wrong is technical debt waiting to cause production incidents.
 
 ---
 

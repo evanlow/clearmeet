@@ -10,7 +10,7 @@ Purpose: Maintain a chronological, auditable record of directive compliance per 
 Checkpoint Type: <start|test|implementation|risk|handoff>
 Trigger Event: <what caused this checkpoint>
 
-Directive Compliance KPI: X/6 green
+Directive Compliance KPI: X/8 green
 - Green: #...
 - Yellow: #... (pending trigger/action)
 - Red: #... (violation and corrective action)
@@ -24,7 +24,9 @@ Checklist Status:
 3. Confirm baseline tests pass clean (Principle 1)
 4. Require post-change tests clean (Principle 1)
 5. Enforce UI manual smoke checks for UI changes (Principle 5)
-6. Record compliance status in updates
+6. Validate input handling: Frontend (UX) + Backend (Security) (Principle 7)
+7. Investigate anomalies, don't work around them (Principle 8)
+8. Record compliance status in updates
 
 Completed Actions:
 - ...
@@ -299,6 +301,54 @@ Risks / Blockers / Corrections:
 Next Steps:
 - Commit changes to git with proper commit message
 - Push to remote repository
+
+---
+
+## Session: 2026-03-07 / gitignore-fix
+
+Checkpoint Type: implementation
+Trigger Event: User identified broken .gitignore file with wildcard '*' pattern
+
+Directive Compliance KPI: 7/7 green
+- Green: #1, #2, #3, #4, #5, #6, #7
+- Yellow: none
+- Red: none
+
+KPI Delta Since Previous Entry:
+- No change (maintained 7/7 green)
+- Critical infrastructure fix completed
+
+Checklist Status:
+1. Track directive compliance live ✓
+2. Verify venv before Python actions (Principle 0) ✓
+3. Confirm baseline tests pass clean (Principle 1) ✓ - No code changes, no test run needed
+4. Require post-change tests clean (Principle 1) ✓ - Configuration change only
+5. Enforce UI manual smoke checks for UI changes (Principle 5) ✓ - N/A for .gitignore
+6. Validate input handling: Frontend (UX) + Backend (Security) ✓ - N/A
+7. Record compliance status in updates ✓
+
+Completed Actions:
+- Identified .gitignore issue: wildcard '*' ignored everything
+- Replaced with proper Python/Flask .gitignore patterns:
+  - Virtual environment: Include/, Lib/, Scripts/, pyvenv.cfg
+  - Cache files: __pycache__/, .pytest_cache/
+  - Temporary files: temp_uploads/, TEST_*.pdf, MOM_*.pdf
+  - Secrets: .env
+  - IDE/OS files: .vscode/, .DS_Store, etc.
+- Verification tests (all passed):
+  - Venv directories: IGNORED ✓
+  - Cache/temp files: IGNORED ✓
+  - Source code: NOT IGNORED ✓
+  - Can add new files: YES ✓
+  - All tracked files still accessible: YES ✓
+- Committed and pushed to git (commit fcf8871)
+
+Risks / Blockers / Corrections:
+- None - all verification passed
+
+Next Steps:
+- Monitor git operations to ensure .gitignore works correctly
+- Session complete
 
 ---
 
@@ -1521,3 +1571,54 @@ Next Steps:
   3. Verify summaries appear in MOM preview
   4. Export to PDF and verify formatting
 - After manual testing passes ? commit changes
+
+---
+
+## Session: 2026-03-07 / principle-8-addition
+
+Checkpoint Type: implementation
+Trigger Event: Lesson learned from .gitignore incident - importance of investigating anomalies
+
+Directive Compliance KPI: 8/8 green
+- Green: #1, #2, #3, #4, #5, #6, #7, #8
+- Yellow: none
+- Red: none
+
+KPI Delta Since Previous Entry:
+- Updated KPI score format from X/7 to X/8 green
+- Added checklist item #7: "Investigate anomalies, don't work around them"
+- Re-numbered item #7 (record status) to #8
+
+Checklist Status:
+1. Track directive compliance live ✓
+2. Verify venv before Python actions (Principle 0) ✓
+3. Confirm baseline tests pass clean (Principle 1) ✓ - No code changes
+4. Require post-change tests clean (Principle 1) ✓ - Documentation only
+5. Enforce UI manual smoke checks for UI changes (Principle 5) ✓ - N/A
+6. Validate input handling: Frontend (UX) + Backend (Security) ✓ - N/A
+7. Investigate anomalies, don't work around them (Principle 8) ✓ - This IS the principle
+8. Record compliance status in updates ✓
+
+Completed Actions:
+- Added Principle 8 to prime_directive.md: "Investigate Anomalies - Don't Work Around Them"
+- Documented the .gitignore incident as a real-world example
+- Included investigation protocol, common signals, and cost table
+- Updated Quick Reference checklist to include Principle 8
+- Updated KPI tracking from X/7 to X/8 green
+- Updated session_log.md template to match new 8-item checklist
+- Updated Last Updated date in prime directive to March 7, 2026
+
+Key Lesson Documented:
+- **Rule**: If something seems wrong/strange/requires workaround → STOP and investigate
+- **Why**: Workarounds mask problems; 2 min investigating prevents hours debugging later
+- **Example**: .gitignore had wildcard '*' (ignored everything), worked around with 'git add -u'
+- **Cost**: If undetected, would have blocked adding ANY new files (project-blocking issue)
+
+Risks / Blockers / Corrections:
+- None
+
+Next Steps:
+- Commit and push prime_directive.md and session_log.md updates
+- Continue applying Principle 8 in all future work
+
+---
