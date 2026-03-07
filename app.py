@@ -63,19 +63,23 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     
     # Initialize session backend based on SESSION_TYPE
     session_type = app.config.get('SESSION_TYPE')
-    if session_type == 'cachelib':
+    if session_type == 'redis':
+        # Redis sessions (Heroku production - handles large MOM data >4KB)
+        Session(app)
+        logger.info(f"Session backend: Redis (large session support for production)")
+    elif session_type == 'cachelib':
         # Server-side sessions (for development/single-process)
         app.config['SESSION_CACHELIB'] = SimpleCache()
         Session(app)
         logger.info(f"Session backend: cachelib with SimpleCache (single-process only)")
     elif session_type is None or session_type == '':
-        # Signed cookie sessions (for production with multiple workers)
+        # Signed cookie sessions (default for local development)
         # Set SESSION_TYPE to None explicitly so Flask-Session doesn't interfere
         app.config['SESSION_TYPE'] = None
         # DO NOT call Session(app) - use Flask's built-in signed cookie sessions
-        logger.info(f"Session backend: Flask signed cookies (works with multiple workers)")
+        logger.info(f"Session backend: Flask signed cookies (local development)")
     else:
-        raise ValueError(f"Unsupported SESSION_TYPE: {session_type}. Use 'cachelib' or leave unset.")
+        raise ValueError(f"Unsupported SESSION_TYPE: {session_type}")
     
     # Initialize Flask-Login
     login_manager = LoginManager()

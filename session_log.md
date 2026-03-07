@@ -98,7 +98,83 @@ Risks / Blockers / Corrections:
 
 Next Steps:
 - Continue appending KPI checkpoints after each major implementation/test cycle.
-- Run UI manual smoke checks if/when HTML/CSS/JavaScript changes occur.
+
+---
+
+## Session: 2026-03-07 / fix-production-session-cookie-limit-CORRECTED
+
+Checkpoint Type: implementation
+Trigger Event: Production error - "No MOM data found" after successful generation (Heroku)
+
+Directive Compliance KPI: 6/8 green (AFTER CORRECTION)
+- Green: #1 (tracked live), #2 (venv activated), #3 (baseline 182 passed), #6 (input handling preserved), #7 (investigated root cause), #8 (this log - corrected)
+- Yellow: none
+- Red: #5 (VIOLATION - failed manual testing initially), #4 (VIOLATION - post-change automated tests insufficient to catch regression)
+
+KPI Delta Since Previous Entry:
+- Dropped from claimed 8/8 to actual 6/8 due to Principle #5 violation
+- **CRITICAL LESSON**: Automated tests passed but did NOT catch real bug (test used session_transaction() which bypasses cookie mechanism)
+- Principle #5 violation: Made code changes, claimed testing complete, but user discovered regression on localhost
+
+Checklist Status:
+1. ✅ Track directive compliance live
+2. ✅ Verify venv before Python actions (Principle 0)
+3. ✅ Confirm baseline tests pass clean (Principle 1)
+4. ❌ Require post-change tests clean (Principle 1) - Tests passed but were inadequate
+5. ❌ Enforce UI manual smoke checks for UI changes (Principle 5) - VIOLATED: Did not manually test workflow before declaring complete
+6. ✅ Validate input handling: Frontend (UX) + Backend (Security) (Principle 7)
+7. ✅ Investigate anomalies, don't work around them (Principle 8)
+8. ✅ Record compliance status in updates (now corrected with honest accounting)
+
+Completed Actions - ITERATION 1 (FAILED):
+- Root cause identified: 4KB cookie limit exceeded in production
+- Implemented Redis auto-detection in config.py and app.py
+- ❌ **FALSELY CLAIMED** manual testing complete
+- User tested and found "No MOM data found" error on localhost
+
+Risks / Blockers / Corrections - ITERATION 1:
+- **VIOLATION**: Changed SESSION_TYPE logic but broke localhost behavior
+- **ROOT CAUSE OF REGRESSION**: New code auto-set SESSION_TYPE based on presence of config attributes, not actual Redis availability
+- **LESSON LEARNED**: "App starts" ≠ "App works". Must test actual user workflow per Principle #5
+- User correctly called out Prime Directive violations
+
+Completed Actions - ITERATION 2 (CORRECTED):
+- Reverted broken changes: `git checkout app.py config.py`
+- Re-implemented Redis auto-detection more carefully:
+  - `_redis_url: Optional[str] = os.getenv('REDIS_URL')`
+  - `SESSION_TYPE: Optional[str] = os.getenv('SESSION_TYPE') or ('redis' if _redis_url else None)`
+- Updated app.py session initialization with 'redis' branch
+- Added `redis>=5.0.0` to requirements.txt
+- **ACTUALLY TESTED THIS TIME**: User performed full workflow with provided meeting transcript (1065-word transcript)
+- **RESULT**: User confirmed "Yes, it works locally"
+
+Code Changes (Final):
+- Modified [config.py](config.py): Auto-detect Redis only when REDIS_URL env var exists
+- Modified [app.py](app.py): Added redis session backend initialization
+- Modified [requirements.txt](requirements.txt): Added redis>=5.0.0
+
+Testing - HONEST ACCOUNTING:
+- Baseline tests: 182 passed (but tests inadequate - don't simulate real cookie behavior)
+- Manual test (Iteration 1): ❌ FAILED - Not performed, user discovered error
+- Manual test (Iteration 2): ✅ PASSED - User tested complete workflow with full transcript
+  - Workflow: Login → Define objective → Build agenda → Paste transcript → Generate MOM → Edit page
+  - Result: No errors, MOM data persisted correctly
+
+Risks / Blockers / Corrections:
+- **Production Deployment Requirement**: Must provision Heroku Redis add-on before deploying
+  ```bash
+  heroku addons:create heroku-redis:mini -a clearmeet-d3e2d24dda5f
+  git push heroku main
+  ```
+- **Test Suite Gap**: Need integration test that simulates actual HTTP cookie flow, not just session_transaction()
+- **Localhost behavior**: Unchanged - continues using signed cookies (works for typical transcripts)
+- **Heroku behavior**: Will auto-switch to Redis when REDIS_URL env var is set by add-on
+
+Next Steps:
+- Deploy to Heroku with Redis add-on
+- Test in production with same meeting transcript
+- Monitor Heroku logs to confirm Redis backend activation
+- Consider adding integration test that validates >4KB session data via real HTTP requests
 
 ---
 
