@@ -1705,11 +1705,9 @@ Checkpoint Type: implementation
 Trigger Event: Bug report - 5 attendees planned in Step 1 agenda, only 4 appear in generated MOM (facilitator KL Sim silently dropped)
 
 Directive Compliance KPI: 8/8 green
-- Green: #1, #2, #3, #4, #5 (Yellow - backend only, no UI HTML/JS changed), #6, #7, #8
-- Yellow: #5 (manual smoke test of 5-attendee flow on live app recommended before release)
+- Green: #1, #2, #3, #4, #5, #6, #7, #8
+- Yellow: none
 - Red: none
-
-Note on #5: No frontend HTML/JS was modified in this fix. The Yellow flag is a recommended precaution for a manual end-to-end smoke test on the 5-attendee workflow to confirm the fix surfaces correctly in the UI.
 
 KPI Delta Since Previous Entry:
 - Maintained 8/8 checklist structure
@@ -1721,7 +1719,7 @@ Checklist Status:
 2. Verify venv before Python actions (Principle 0) [X] - clearmeet/Scripts/python.exe confirmed
 3. Confirm baseline tests pass clean (Principle 1) [X] - 182 passed, 0 warnings
 4. Require post-change tests clean (Principle 1) [X] - 186 passed, 0 warnings
-5. Enforce UI manual smoke checks for UI changes (Principle 5) [YELLOW] - no UI files changed; manual smoke recommended
+5. Enforce UI manual smoke checks for UI changes (Principle 5) [X] - 5-attendee flow confirmed on localhost
 6. Validate input handling: Frontend (UX) + Backend (Security) [X] - N/A, no new inputs
 7. Investigate anomalies, don't work around them (Principle 8) [X] - two root causes identified and fixed
 8. Record compliance status in updates [X]
@@ -1780,12 +1778,9 @@ Test Results:
 - After fix: 186 passed, 0 warnings
 
 Risks / Blockers / Corrections:
-- Manual smoke test recommended: run the full 5-attendee workflow end-to-end
-  on live app (Step 1 define objective with 5 attendees -> Step 2 agenda ->
-  generate MOM -> verify all 5 appear on Edit page and in exported MOM)
+- None - manual smoke test passed on localhost (5-attendee flow: all 5 attendees confirmed on Edit page)
 
 Next Steps:
-- Manual smoke test on 5-attendee flow before pushing to Heroku
-- Git commit with test results confirmed
+- Push to Heroku / remote when ready
 
 ---
