@@ -604,6 +604,13 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             validated_mom = validate_mom_dict(mom_data_raw)
             mom_data = validated_mom.model_dump(exclude_none=True)
             mom_text = mom_to_text(validated_mom, agenda_items=agenda_items)
+
+            # Always use the planned attendees list as authoritative when available.
+            # The LLM may omit attendees not prominent in the transcript (e.g. facilitators).
+            if planned_objective and planned_objective.get('attendees'):
+                mom_data['attendees'] = planned_objective['attendees']
+                logger.info(f"Applied planned attendees at generation: {len(mom_data['attendees'])} attendees")
+
             print(f"[DEBUG] ✓ MOM generated successfully")
             print(f"[DEBUG] MOM data keys: {list(mom_data.keys()) if mom_data else None}")
             print(f"[DEBUG] MOM objective: {mom_data.get('objective', 'N/A')[:100] if mom_data else 'N/A'}")
@@ -781,11 +788,15 @@ def create_app(config_name: Optional[str] = None) -> Flask:
                 mom_data['venue'] = planned_objective.get('venue')
                 logger.info(f"Pre-populated venue from Step 1: {mom_data['venue']}")
             
-            if planned_objective.get('attendees') and not mom_data.get('attendees'):
+            if planned_objective.get('attendees'):
                 mom_data['attendees'] = planned_objective.get('attendees')
                 logger.info(f"Pre-populated attendees from Step 1: {len(mom_data['attendees'])} attendees")
 
-        
+            # Persist any pre-populated fields back to session so subsequent
+            # reads (validate, export) see the complete attendee list.
+            session['mom_data'] = mom_data
+            session['mom_json'] = mom_data
+
         # Phase 2 Integration: Pass agenda items for display
         agenda_items = session.get('agenda_items', [])
         if agenda_items:

@@ -515,3 +515,107 @@ class TestWorkflowPerformance:
         # Verify validate page can handle many actions
         response = client.get('/validate')
         assert response.status_code == 200
+
+
+class TestPlannedObjectiveAttendees:
+    """Regression tests: planned attendees from Step 1 must survive MOM generation intact."""
+
+    @patch('app.extract_mom_from_transcript')
+    def test_all_planned_attendees_appear_after_mom_generation(
+        self, mock_generate, client, sample_transcript
+    ):
+        """Regression: if planned_objective defines N attendees and LLM returns fewer,
+        the edit page session must contain all N planned attendees.
+
+        Bug scenario: 5 attendees defined in Step 1; LLM only extracts 4 from transcript;
+        5th attendee (e.g. Facilitator) was silently dropped from the MOM.
+        """
+        planned_attendees = [
+            'Marcus (Business Development Manager)',
+            'Aisha (Purchasing Manager)',
+            'Daniel (Operations Manager)',
+            'Grace (Finance Manager)',
+            'KL Sim (Facilitator)',
+        ]
+
+        # LLM only returns 4 — KL Sim is absent from the LLM output
+        mock_generate.return_value = {
+            'title': 'Supplier Pricing Workflow Meeting',
+            'date': '2026-04-10',
+            'objective': 'Agree on a standardized cross-department workflow for sharing supplier pricing data.',
+            'attendees': planned_attendees[:4],  # 4 of 5
+            'decisions': [{'text': 'Adopt 3-step supplier comparison process'}],
+            'action_items': [
+                {'action': 'Draft shared pricing template', 'owner': 'Aisha', 'deadline': '2026-04-17'}
+            ],
+        }
+
+        # Seed session with planned_objective containing 5 attendees (simulates completing Step 1)
+        with client.session_transaction() as sess:
+            sess['meeting_objective'] = {
+                'business_issue': 'Cross-department delays in supplier price consolidation.',
+                'objective': 'Agree on a standardized cross-department workflow for sharing supplier pricing data.',
+                'expected_output': 'Approved shared pricing template with named owners.',
+                'start_time': '2026-04-10T10:00',
+                'end_time': '2026-04-10T11:00',
+                'venue': 'Meeting Room A',
+                'attendees': planned_attendees,
+            }
+
+        response = client.post('/process', data={
+            'transcript_text': sample_transcript
+        }, follow_redirects=False)
+
+        assert response.status_code == 302
+
+        with client:
+            client.get('/edit')
+            from flask import session
+            session_attendees = session['mom_data'].get('attendees', [])
+
+            assert len(session_attendees) == 5, (
+                f"Expected 5 attendees in MOM but got {len(session_attendees)}: {session_attendees}"
+            )
+            assert 'KL Sim (Facilitator)' in session_attendees, (
+                "KL Sim (Facilitator) should be preserved from planned_objective attendees "
+                "even when not returned by the LLM."
+            )
+            for attendee in planned_attendees:
+                assert attendee in session_attendees, (
+                    f"Planned attendee '{attendee}' missing from MOM session data."
+                )
+
+    @patch('app.extract_mom_from_transcript')
+    def test_planned_attendees_used_even_when_llm_returns_zero(
+        self, mock_generate, client, sample_transcript
+    ):
+        """Planned attendees must backfill when LLM returns no attendees at all."""
+        planned_attendees = ['Alice', 'Bob', 'Carol']
+
+        mock_generate.return_value = {
+            'title': 'Budget Meeting',
+            'date': '2026-04-10',
+            'objective': 'Decide on Q1 budget allocation for the year.',
+            'attendees': None,
+            'decisions': [{'text': 'Budget approved'}],
+            'action_items': [],
+        }
+
+        with client.session_transaction() as sess:
+            sess['meeting_objective'] = {
+                'business_issue': 'Over-budget Q1 expenses.',
+                'objective': 'Decide on Q1 budget allocation for the year.',
+                'expected_output': 'Approved budget plan.',
+                'start_time': '2026-04-10T09:00',
+                'end_time': '2026-04-10T10:00',
+                'attendees': planned_attendees,
+            }
+
+        client.post('/process', data={'transcript_text': sample_transcript}, follow_redirects=False)
+
+        with client:
+            client.get('/edit')
+            from flask import session
+            session_attendees = session['mom_data'].get('attendees') or []
+            for attendee in planned_attendees:
+                assert attendee in session_attendees

@@ -157,12 +157,16 @@ Summary Requirements:
     
     # Add planned objective if available (Step 1 data)
     if planned_objective:
+        attendees_line = ""
+        if planned_objective.get('attendees'):
+            attendees_line = f"\nExpected Attendees: {', '.join(planned_objective['attendees'])}"
         user_sections.append(f"""Planned Meeting Objective (from pre-meeting planning):
 Business Issue: {planned_objective.get('business_issue', '')}
 Objective: {planned_objective.get('objective', '')}
-Expected Output: {planned_objective.get('expected_output', '')}
+Expected Output: {planned_objective.get('expected_output', '')}{attendees_line}
 
-Use the planned objective as the primary objective for this MOM.""")
+Use the planned objective as the primary objective for this MOM.
+Use the Expected Attendees list above as the complete attendees list for this MOM.""")
     
     # Add agenda if available (Step 2 data)
     if agenda_items:

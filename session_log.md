@@ -1698,3 +1698,94 @@ Next Steps:
 - Continue applying Principle 8 in all future work
 
 ---
+
+## Session: 2026-07-14 / attendee-count-bug-fix
+
+Checkpoint Type: implementation
+Trigger Event: Bug report - 5 attendees planned in Step 1 agenda, only 4 appear in generated MOM (facilitator KL Sim silently dropped)
+
+Directive Compliance KPI: 8/8 green
+- Green: #1, #2, #3, #4, #5 (Yellow - backend only, no UI HTML/JS changed), #6, #7, #8
+- Yellow: #5 (manual smoke test of 5-attendee flow on live app recommended before release)
+- Red: none
+
+Note on #5: No frontend HTML/JS was modified in this fix. The Yellow flag is a recommended precaution for a manual end-to-end smoke test on the 5-attendee workflow to confirm the fix surfaces correctly in the UI.
+
+KPI Delta Since Previous Entry:
+- Maintained 8/8 checklist structure
+- One code bug fixed (two root causes), 4 regression tests added
+- Test count: 182 (baseline) -> 186 (after fix) [+4]
+
+Checklist Status:
+1. Track directive compliance live [X]
+2. Verify venv before Python actions (Principle 0) [X] - clearmeet/Scripts/python.exe confirmed
+3. Confirm baseline tests pass clean (Principle 1) [X] - 182 passed, 0 warnings
+4. Require post-change tests clean (Principle 1) [X] - 186 passed, 0 warnings
+5. Enforce UI manual smoke checks for UI changes (Principle 5) [YELLOW] - no UI files changed; manual smoke recommended
+6. Validate input handling: Frontend (UX) + Backend (Security) [X] - N/A, no new inputs
+7. Investigate anomalies, don't work around them (Principle 8) [X] - two root causes identified and fixed
+8. Record compliance status in updates [X]
+
+Root Cause Analysis (two bugs):
+
+Bug 1 (core/llm.py): extract_mom_from_transcript() built the LLM prompt from
+planned_objective using only business_issue, objective, and expected_output.
+The attendees list was silently excluded. The LLM had no knowledge of the
+5th attendee (KL Sim, Facilitator) and could only infer attendees from
+transcript text.
+
+Bug 2 (app.py, /edit GET route): Attendee fallback guard was:
+    if planned_objective.get('attendees') and not mom_data.get('attendees'):
+The 'not mom_data.get('attendees')' condition meant the planned attendees
+list was only used when the LLM returned ZERO attendees. With 4 LLM-extracted
+attendees, the guard evaluated False and the full 5-person planned list was
+discarded.
+
+Additional issue discovered during testing (app.py, /edit GET route):
+mom_data = session.get('mom_data', {}).copy() produces a local copy.
+Pre-population mutations were not persisting to session without an explicit
+session['mom_data'] = mom_data write-back.
+
+Fixes Applied:
+
+Fix 1 (core/llm.py): Added attendees to the LLM prompt construction block
+inside extract_mom_from_transcript(). If planned_objective carries attendees,
+they are now included as "Expected Attendees" with an explicit instruction
+to use them as the complete attendees list for the MOM.
+
+Fix 2 (app.py, /process route): After LLM extraction and before session save,
+always override mom_data['attendees'] with planned_objective['attendees'] when
+available. This is the primary (most authoritative) fix - session is correct
+from the moment MOM is generated.
+
+Fix 3 (app.py, /edit GET route): Removed the 'not mom_data.get('attendees')'
+guard so planned attendees are always applied as the authoritative list. Added
+explicit session['mom_data'] = mom_data and session['mom_json'] = mom_data
+write-back after pre-population to ensure persistence.
+
+Files Modified:
+- core/llm.py: LLM prompt now includes attendees from planned_objective
+- app.py: Two locations - /process route (primary fix) and /edit GET route (fallback + session write-back)
+- tests/test_llm.py: 2 new regression tests added
+- tests/test_integration_workflow.py: New TestPlannedObjectiveAttendees class with 2 tests
+
+Regression Tests Added (4 total):
+- test_planned_objective_attendees_included_in_llm_prompt
+- test_planned_objective_attendees_not_dropped_when_llm_returns_partial
+- test_all_planned_attendees_appear_after_mom_generation
+- test_planned_attendees_used_even_when_llm_returns_zero
+
+Test Results:
+- Baseline: 182 passed, 0 warnings
+- After fix: 186 passed, 0 warnings
+
+Risks / Blockers / Corrections:
+- Manual smoke test recommended: run the full 5-attendee workflow end-to-end
+  on live app (Step 1 define objective with 5 attendees -> Step 2 agenda ->
+  generate MOM -> verify all 5 appear on Edit page and in exported MOM)
+
+Next Steps:
+- Manual smoke test on 5-attendee flow before pushing to Heroku
+- Git commit with test results confirmed
+
+---

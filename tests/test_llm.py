@@ -200,3 +200,76 @@ class TestLLMFunctions:
         }
         text = render_mom_text(mom_data)
         assert "No deadline specified" in text
+
+    @patch('core.llm.OpenAI')
+    def test_planned_objective_attendees_included_in_llm_prompt(self, mock_openai_class, sample_transcript, sample_mom_data):
+        """Regression: planned_objective attendees must be included in the LLM prompt.
+
+        When a meeting has pre-defined attendees from Step 1, the LLM must know
+        about all of them so it does not silently drop any from the generated MOM.
+        """
+        planned_objective = {
+            'business_issue': 'Cross-department delays in supplier price consolidation.',
+            'objective': 'Agree on a standardized cross-department workflow.',
+            'expected_output': 'Approved shared pricing template.',
+            'attendees': ['Marcus', 'Aisha', 'Daniel', 'Grace', 'KL Sim (Facilitator)'],
+        }
+
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].message.content = json.dumps(sample_mom_data)
+
+        mock_client = Mock()
+        mock_client.chat.completions.create.return_value = mock_response
+        mock_openai_class.return_value = mock_client
+
+        extract_mom_from_transcript(sample_transcript, planned_objective=planned_objective)
+
+        # Verify the LLM was called with a prompt that contains the attendees
+        call_args = mock_client.chat.completions.create.call_args
+        messages = call_args[1]['messages'] if 'messages' in call_args[1] else call_args[0][1]
+        user_message = next(m['content'] for m in messages if m['role'] == 'user')
+
+        for attendee in planned_objective['attendees']:
+            assert attendee in user_message, (
+                f"Attendee '{attendee}' missing from LLM prompt — "
+                "all planned attendees must be included so the LLM can use them."
+            )
+
+    @patch('core.llm.OpenAI')
+    def test_planned_objective_attendees_not_dropped_when_llm_returns_partial(
+        self, mock_openai_class, sample_transcript, sample_mom_data
+    ):
+        """Regression: planned attendees must not be silently dropped when LLM returns a partial list.
+
+        The LLM may extract only attendees it sees in the transcript.  If the
+        planned_objective has 5 attendees and the LLM only infers 4, the final
+        MOM must still carry all 5 from the planned list.
+        This test validates the prompt-level fix (attendees are sent to the LLM).
+        """
+        planned_objective = {
+            'business_issue': 'Supplier pricing delays.',
+            'objective': 'Agree on standardized workflow for sharing supplier pricing data.',
+            'expected_output': 'Approved shared pricing template.',
+            'attendees': ['Marcus', 'Aisha', 'Daniel', 'Grace', 'KL Sim (Facilitator)'],
+        }
+
+        # LLM returns only 4 of the 5 attendees (KL Sim is missing)
+        partial_mom = dict(sample_mom_data)
+        partial_mom['attendees'] = ['Marcus', 'Aisha', 'Daniel', 'Grace']
+
+        mock_response = Mock()
+        mock_response.choices = [Mock()]
+        mock_response.choices[0].message.content = json.dumps(partial_mom)
+
+        mock_client = Mock()
+        mock_client.chat.completions.create.return_value = mock_response
+        mock_openai_class.return_value = mock_client
+
+        result = extract_mom_from_transcript(sample_transcript, planned_objective=planned_objective)
+
+        # Verify the LLM prompt included KL Sim so it had a chance to include them
+        call_args = mock_client.chat.completions.create.call_args
+        messages = call_args[1]['messages'] if 'messages' in call_args[1] else call_args[0][1]
+        user_message = next(m['content'] for m in messages if m['role'] == 'user')
+        assert 'KL Sim (Facilitator)' in user_message
