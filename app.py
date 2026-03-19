@@ -711,6 +711,9 @@ def create_app(config_name: Optional[str] = None) -> Flask:
                 else:
                     # Count consecutive empty reads
                     consecutive_empty += 1
+                    # Send SSE comment heartbeat every ~10s to prevent Heroku H12 (30s kill)
+                    if consecutive_empty % 200 == 0:
+                        yield ': keep-alive\n\n'
                     # Timeout after 5 minutes of no updates
                     if consecutive_empty > 6000:  # 6000 * 0.05s = 300s = 5 min
                         print("[SSE] Timeout: No progress updates for 5 minutes")
