@@ -4,7 +4,7 @@
   "repository": "https://github.com/evanlow/clearmeet",
   "buildpacks": [
     {
-      "url": "https://github.com/jonathanong/heroku-buildpack-ffmpeg-latest.git"
+      "url": "https://github.com/heroku/heroku-buildpack-activestorage-preview"
     },
     {
       "url": "heroku/python"
