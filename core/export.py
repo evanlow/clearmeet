@@ -189,15 +189,12 @@ class PDFExporter:
                             deadline = self._format_deadline(parts[3].strip())
                             status = parts[4].strip()
                             
-                            # Only add if it's a real row (not continuation or header)
-                            if num and (num.isdigit() or action):
-                                # If this row has a number, it's a new action item
-                                if num.isdigit():
-                                    table_data.append([num, action, owner, deadline, status])
-                                # If no number but action exists, it's a continuation
-                                elif action and table_data:
-                                    # Append to previous row's action
-                                    table_data[-1][1] += ' ' + action
+                            # New numbered row
+                            if num.isdigit():
+                                table_data.append([num, action, owner, deadline, status])
+                            # Continuation line: num column is empty, action has more text
+                            elif action and table_data:
+                                table_data[-1][1] += ' ' + action
                     
                     idx += 1
                 break
