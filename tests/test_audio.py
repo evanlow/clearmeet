@@ -86,18 +86,18 @@ class TestAudioTranscriber:
         with pytest.raises(ValueError, match="Unsupported audio format"):
             transcriber.transcribe_audio("test_file.txt")
     
-    @patch('core.audio.AudioTranscriber._transcribe_with_chunking')
+    @patch('core.audio.AudioTranscriber._transcribe_with_ffmpeg_chunking')
     @patch('os.path.getsize')
     @patch('os.path.exists')
     def test_transcribe_audio_triggers_chunking_for_large_file(self, mock_exists, mock_getsize, mock_chunk, transcriber):
-        """Test that large files (>20MB) trigger chunking instead of raising error."""
+        """Test that large files (>20MB) trigger ffmpeg chunking (memory-efficient path)."""
         mock_exists.return_value = True
         mock_getsize.return_value = 30 * 1024 * 1024  # 30MB (over 20MB chunk threshold)
         mock_chunk.return_value = "Chunked transcript"
         
         result = transcriber.transcribe_audio("large_audio.mp3", chunk_size_mb=20)
         
-        # Verify chunking was triggered (now includes progress_callback parameter)
+        # Verify ffmpeg chunking was triggered directly (bypasses pydub to avoid OOM)
         mock_chunk.assert_called_once_with("large_audio.mp3", None, 20, None)
         assert result == "Chunked transcript"
 

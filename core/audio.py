@@ -75,10 +75,10 @@ class AudioTranscriber:
         
         print(f"[AUDIO] File size: {file_size_mb:.1f}MB")
         
-        # Use chunking for large files
+        # Use chunking for large files — use ffmpeg directly (memory-efficient: no full RAM load)
         if file_size_mb > chunk_threshold_mb:
-            print(f"[AUDIO] File exceeds {chunk_threshold_mb}MB, using chunking approach")
-            return self._transcribe_with_chunking(audio_file_path, language, chunk_size_mb, progress_callback)
+            print(f"[AUDIO] File exceeds {chunk_threshold_mb}MB, using ffmpeg chunking approach")
+            return self._transcribe_with_ffmpeg_chunking(audio_file_path, language, chunk_size_mb, progress_callback)
         
         # Standard single-file transcription for smaller files
         print(f"[AUDIO] File under {chunk_threshold_mb}MB, using standard transcription")
