@@ -155,9 +155,13 @@ class AudioTranscriber:
         
         print(f"[AUDIO] Loading audio file for chunking...")
         
-        # Load audio file with pydub
+        # Load audio file with pydub (requires ffprobe; catch failure and fall back)
         file_ext = Path(audio_file_path).suffix.lower().lstrip('.')
-        audio = AudioSegment.from_file(audio_file_path, format=file_ext)
+        try:
+            audio = AudioSegment.from_file(audio_file_path, format=file_ext)
+        except Exception as e:
+            print(f"[AUDIO] pydub failed ({e}); falling back to ffmpeg chunking")
+            return self._transcribe_with_ffmpeg_chunking(audio_file_path, language, chunk_size_mb, progress_callback)
         
         # Calculate chunk duration
         audio_duration_ms = len(audio)
