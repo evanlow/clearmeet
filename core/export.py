@@ -221,12 +221,28 @@ class PDFExporter:
         if not action_data:
             return None
         
-        # Add header row
-        table_data = [['#', 'Action', 'Owner', 'Deadline', 'Status']]
-        table_data.extend(action_data)
+        # Wrap text cells in Paragraph so ReportLab word-wraps long content
+        cell_style = ParagraphStyle(
+            'TableCell',
+            parent=self.styles['body'],
+            fontSize=9,
+            leading=13,
+            spaceAfter=0,
+        )
         
-        # Create table
-        table = Table(table_data, colWidths=[0.4*inch, 2.8*inch, 1.3*inch, 1.3*inch, 0.8*inch])
+        # Add header row (plain strings — styled via TableStyle)
+        table_data = [['#', 'Action', 'Owner', 'Deadline', 'Status']]
+        for row in action_data:
+            table_data.append([
+                row[0],
+                Paragraph(self._escape_html(row[1]), cell_style),
+                Paragraph(self._escape_html(row[2]), cell_style),
+                Paragraph(self._escape_html(row[3] if len(row) > 3 else ''), cell_style),
+                row[4] if len(row) > 4 else '',
+            ])
+        
+        # Create table — Action column widened to 3.2" for long descriptions
+        table = Table(table_data, colWidths=[0.4*inch, 3.2*inch, 1.1*inch, 1.1*inch, 0.8*inch])
         
         # Style the table
         style = TableStyle([
@@ -249,7 +265,8 @@ class PDFExporter:
             ('ALIGN', (2, 1), (2, -1), 'LEFT'),    # Owner column left
             ('ALIGN', (3, 1), (3, -1), 'LEFT'),    # Deadline column left
             ('ALIGN', (4, 1), (4, -1), 'CENTER'),  # Status column centered
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),  # header middle-aligned
+            ('VALIGN', (0, 1), (-1, -1), 'TOP'),    # data rows top-aligned for multi-line
             ('TOPPADDING', (0, 1), (-1, -1), 8),
             ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
             ('LEFTPADDING', (0, 0), (-1, -1), 6),
