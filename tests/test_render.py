@@ -54,14 +54,17 @@ def test_format_action_items_handles_missing_fields_nicely():
 
 def test_format_action_items_wraps_long_action_text():
     mom = _sample_mom()
-    mom.action_items[0].action = "Scrub the contact list to reduce duplicates before the campaign launch"
+    # Use a sentence long enough to exceed action_width=55 chars so wrapping is exercised
+    mom.action_items[0].action = (
+        "Scrub the contact list to remove duplicates before the campaign launch date arrives"
+    )
 
     lines = format_action_items(mom.action_items)
     output = "\n".join(lines)
 
     assert "..." not in output
-    assert "Scrub the contact list to reduce" in output
-    assert "duplicates before the campaign" in output
+    assert "Scrub the contact list to remove duplicates" in output
+    assert "campaign launch date arrives" in output
 
 
 def test_apply_user_edits_keeps_structured_unchanged_for_mvp():

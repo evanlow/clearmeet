@@ -9,9 +9,8 @@ from core.schema import MeetingMOM, ActionItem
 
 
 def _format_action_cell(value: str, width: int) -> str:
+    # Pad to column width; never truncate (wrapping is handled upstream)
     text = (value or "").strip()
-    if len(text) > width:
-        text = text[: width - 3] + "..."
     return text.ljust(width)
 
 
@@ -34,7 +33,7 @@ def format_action_items(action_items: list[ActionItem]) -> list[str]:
     if not action_items:
         return ["  None"]
 
-    action_width = 34
+    action_width = 55
     owner_width = 18
     deadline_width = 24
     status_width = 12

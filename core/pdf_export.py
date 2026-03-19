@@ -9,7 +9,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.lib.enums import TA_LEFT, TA_CENTER
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Preformatted
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.colors import HexColor
 
 
@@ -56,9 +56,11 @@ def export_mom_pdf(title: str, mom_text: str) -> bytes:
     story.append(Paragraph(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}", styles['header_date']))
     story.append(Spacer(1, 0.2 * inch))
     
-    # Add MOM content using monospaced preformatted text
-    # Preformatted preserves spacing and line breaks while allowing automatic wrapping
-    story.append(Preformatted(mom_text, styles['monospace_body']))
+    # Add MOM content line by line using Paragraph so long lines word-wrap
+    # instead of being clipped (Preformatted does not word-wrap).
+    for line in mom_text.splitlines():
+        escaped = _escape_html(line) if line.strip() else '&nbsp;'
+        story.append(Paragraph(escaped, styles['monospace_body']))
     
     # Add footer
     story.append(Spacer(1, 0.2 * inch))
