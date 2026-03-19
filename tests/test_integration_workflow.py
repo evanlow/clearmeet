@@ -239,19 +239,30 @@ class TestCompleteAudioWorkflow:
         audio_data = BytesIO(b'fake audio content')
         audio_data.name = 'meeting.mp3'
         
-        # Step 1: Upload audio file
-        response = client.post('/process', data={
+        # Step 1: Upload audio — POST /generate now returns 202 immediately;
+        # all processing runs in a background thread.
+        response = client.post('/generate', data={
             'audio_file': (audio_data, 'meeting.mp3'),
             'additional_context': 'Weekly standup'
         }, content_type='multipart/form-data', follow_redirects=False)
         
-        # Should redirect to edit
-        assert response.status_code == 302
-        assert '/edit' in response.location
+        assert response.status_code == 202
+        assert response.json['status'] == 'processing'
         
-        # Verify audio was validated and transcribed
+        # Mocks are synchronous so the background thread completes near-instantly;
+        # give it a moment before collecting the result.
+        import time as _time
+        _time.sleep(0.2)
+        
+        # Verify audio was validated and transcribed in the background thread
         mock_validate_audio.assert_called_once()
         mock_transcribe.assert_called_once()
+        
+        # Step 1b: Browser navigates here after SSE signals completion.
+        # /generate/complete stores the result to session and redirects to /edit.
+        response = client.get('/generate/complete', follow_redirects=False)
+        assert response.status_code == 302
+        assert '/edit' in response.location
         
         # Step 2: Continue through workflow
         response = client.get('/edit')

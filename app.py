@@ -154,6 +154,91 @@ def create_app(config_name: Optional[str] = None) -> Flask:
         preview = text[:preview_limit].rstrip() + "..."
         return preview, mom_path
 
+    def _audio_processing_background(filepath, objective, instructions, planned_objective, agenda_items):
+        """
+        Background thread: transcribe audio → generate MOM → store result in _progress_state.
+
+        POST /generate returns 202 immediately after starting this thread.
+        GET /generate/complete reads _progress_state['result'] and stores it to the session.
+        """
+        global _progress_state, _progress_lock
+        try:
+            # --- TRANSCRIPTION ---
+            def progress_callback(progress_data):
+                global _progress_state, _progress_lock
+                print(f"[CALLBACK] Received progress update: {progress_data}")
+                with _progress_lock:
+                    if 'progress_chunks' not in _progress_state:
+                        _progress_state['progress_chunks'] = []
+                    _progress_state['progress_chunks'].append(progress_data.get('duration_sec', 0))
+                    progress_data['avg_time_per_chunk'] = (
+                        sum(_progress_state['progress_chunks']) /
+                        len(_progress_state['progress_chunks'])
+                    )
+                    _progress_state['current_progress'] = progress_data
+                    print(f"[CALLBACK] Updated _progress_state: {_progress_state}")
+                print(f"[PROGRESS] Chunk {progress_data.get('chunk')}/{progress_data.get('total_chunks')} "
+                      f"- {progress_data.get('avg_time_per_chunk', 0):.1f}s avg")
+
+            print("[DEBUG] Background thread: starting transcription")
+            transcript = transcribe_audio(filepath, progress_callback=progress_callback)
+            print(f"[DEBUG] Background thread: transcription complete ({len(transcript)} chars)")
+
+            # --- VALIDATE & GENERATE MOM ---
+            print("[DEBUG] Background thread: generating MOM...")
+            transcript_clean = TranscriptParser.clean_transcript(transcript)
+            is_valid, error_msg = TranscriptParser.validate_transcript(transcript_clean)
+            if not is_valid:
+                raise ValueError(f"Transcript validation failed: {error_msg}")
+
+            mom_data_raw = extract_mom_from_transcript(
+                transcript_clean,
+                objective=objective or None,
+                instructions=instructions or None,
+                planned_objective=planned_objective,
+                agenda_items=agenda_items
+            )
+            validated_mom = validate_mom_dict(mom_data_raw)
+            mom_data = validated_mom.model_dump(exclude_none=True)
+            mom_text = mom_to_text(validated_mom, agenda_items=agenda_items)
+
+            # Attendees from pre-meeting plan are authoritative
+            if planned_objective and planned_objective.get('attendees'):
+                mom_data['attendees'] = planned_objective['attendees']
+                logger.info(f"Applied planned attendees in background: {len(mom_data['attendees'])} attendees")
+
+            transcript_preview, transcript_path = _persist_transcript(transcript_clean)
+            mom_text_preview, mom_text_path = _persist_mom_text(mom_text)
+
+            print("[DEBUG] Background thread: MOM generated successfully")
+
+            with _progress_lock:
+                _progress_state['result'] = {
+                    'mom_data': mom_data,
+                    'mom_text': mom_text_preview,
+                    'mom_text_path': mom_text_path,
+                    'transcript': transcript_preview,
+                    'transcript_path': transcript_path,
+                    'transcript_length': len(transcript_clean),
+                    'additional_context': instructions,
+                }
+                _progress_state['processing_done'] = True
+
+        except Exception as e:
+            import traceback as _tb
+            print(f"[ERROR] Background thread error: {e}")
+            print(_tb.format_exc())
+            with _progress_lock:
+                _progress_state['error'] = str(e)
+                _progress_state['processing_done'] = True
+        finally:
+            # Always clean up the uploaded file
+            if os.path.exists(filepath):
+                try:
+                    os.remove(filepath)
+                except Exception as cleanup_err:
+                    print(f"[AUDIO] Warning: could not delete {filepath}: {cleanup_err}")
+
     def _load_text_from_path(path: Optional[str]) -> Optional[str]:
         if not path:
             return None
@@ -464,88 +549,46 @@ def create_app(config_name: Optional[str] = None) -> Flask:
                     # Secure filename
                     filename = secure_filename(audio_file.filename)
                     filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                    
+
                     # Save temporarily
                     audio_file.save(filepath)
-                    
-                    try:
-                        # Validate audio file
-                        is_valid, error_msg = AudioTranscriber.validate_audio_file(
-                            filepath,
-                            max_size_mb=app.config['MAX_CONTENT_LENGTH'] // (1024 * 1024),
-                            allowed_extensions=app.config['ALLOWED_AUDIO_EXTENSIONS']
-                        )
-                        
-                        if not is_valid:
-                            flash(f"Audio file validation failed: {error_msg}", 'error')
-                            return redirect(url_for('index'))
-                        
-                        # Create progress callback for SSE updates
-                        def progress_callback(progress_data):
-                            """Update progress tracking for SSE stream."""
-                            global _progress_state, _progress_lock
-                            
-                            print(f"[CALLBACK] Received progress update: {progress_data}")
-                            
-                            with _progress_lock:
-                                # Track chunk durations for average calculation
-                                if 'progress_chunks' not in _progress_state:
-                                    _progress_state['progress_chunks'] = []
-                                
-                                _progress_state['progress_chunks'].append(progress_data.get('duration_sec', 0))
-                                
-                                # Calculate average time per chunk
-                                progress_data['avg_time_per_chunk'] = sum(_progress_state['progress_chunks']) / len(_progress_state['progress_chunks'])
-                                _progress_state['current_progress'] = progress_data
-                                
-                                print(f"[CALLBACK] Updated _progress_state: {_progress_state}")
-                                
-                            print(f"[PROGRESS] Chunk {progress_data.get('chunk')}/{progress_data.get('total_chunks')} - {progress_data.get('avg_time_per_chunk', 0):.1f}s avg")
-                        
-                        # Transcribe audio in a background thread to keep Flask responsive for SSE
-                        print(f"[DEBUG] Starting transcription in background thread")
-                        
-                        # Store transcript in a container so it can be updated from the thread
-                        transcription_result = {'transcript': None}
-                        transcription_error = {'error': None}
-                        
-                        def transcribe_in_background():
-                            try:
-                                print(f"[DEBUG] Background thread: calling transcribe_audio with progress_callback")
-                                transcription_result['transcript'] = transcribe_audio(filepath, progress_callback=progress_callback)
-                                print(f"[DEBUG] Background thread: transcribe_audio completed")
-                                # Mark completion
-                                with _progress_lock:
-                                    if 'current_progress' in _progress_state:
-                                        _progress_state['current_progress']['completed'] = True
-                            except Exception as e:
-                                print(f"[ERROR] Background thread transcription error: {e}")
-                                transcription_error['error'] = str(e)
-                        
-                        transcribe_thread = threading.Thread(target=transcribe_in_background, daemon=False)
-                        transcribe_thread.start()
-                        
-                        # Wait for transcription to complete
-                        print(f"[DEBUG] Main thread: waiting for transcription")
-                        transcribe_thread.join(timeout=1800)  # 30 minute timeout
-                        
-                        if transcribe_thread.is_alive():
-                            print(f"[ERROR] Transcription thread timed out")
-                            flash("Audio transcription timed out after 30 minutes", 'error')
-                            return redirect(url_for('index'))
-                        
-                        # Check for errors during transcription
-                        if transcription_error['error']:
-                            flash(f"Transcription error: {transcription_error['error']}", 'error')
-                            return redirect(url_for('index'))
-                        
-                        transcript = transcription_result['transcript']
-                        
 
-                    finally:
-                        # Clean up uploaded file
+                    # Validate audio file
+                    is_valid, error_msg = AudioTranscriber.validate_audio_file(
+                        filepath,
+                        max_size_mb=app.config['MAX_CONTENT_LENGTH'] // (1024 * 1024),
+                        allowed_extensions=app.config['ALLOWED_AUDIO_EXTENSIONS']
+                    )
+
+                    if not is_valid:
                         if os.path.exists(filepath):
                             os.remove(filepath)
+                        flash(f"Audio file validation failed: {error_msg}", 'error')
+                        return redirect(url_for('index'))
+
+                    # Capture all request/session data needed by the background thread
+                    # (the request context is gone once we return)
+                    objective = _sanitize_text(request.form.get('objective', ''))
+                    instructions = _sanitize_text(
+                        request.form.get('instructions', '') or
+                        request.form.get('additional_context', '')
+                    )
+                    planned_objective = session.get('meeting_objective')
+                    agenda_items = session.get('agenda_items')
+
+                    # Start background thread — all processing (transcription + LLM) happens there
+                    print("[DEBUG] Starting audio processing background thread")
+                    bg_thread = threading.Thread(
+                        target=_audio_processing_background,
+                        args=(filepath, objective, instructions, planned_objective, agenda_items),
+                        daemon=False
+                    )
+                    bg_thread.start()
+
+                    # Return immediately — browser SSE will signal when done
+                    # and the browser will navigate to /generate/complete
+                    from flask import jsonify
+                    return jsonify({"status": "processing"}), 202
             
             # Check if text transcript provided
             if not transcript and 'transcript_text' in request.form:
@@ -688,8 +731,20 @@ def create_app(config_name: Optional[str] = None) -> Flask:
                 iteration += 1
                 with _progress_lock:
                     progress_data = _progress_state.get('current_progress', {})
+                    processing_done = _progress_state.get('processing_done', False)
+                    processing_error = _progress_state.get('error')
                     if iteration <= 5 or iteration % 20 == 0:
                         print(f"[SSE] Iteration {iteration}: progress_data = {progress_data}")
+                
+                # Background thread signals all work complete (transcription + LLM)
+                if processing_done:
+                    if processing_error:
+                        print(f"[SSE] Processing error: {processing_error}")
+                        yield f'data: {json.dumps({"error": processing_error})}\n\n'
+                    else:
+                        print("[SSE] All processing complete, sending completion signal")
+                        yield f'data: {json.dumps({"completed": True})}\n\n'
+                    break
                 
                 if progress_data and progress_data.get('chunk', 0) > last_chunk:
                     consecutive_empty = 0
@@ -702,14 +757,7 @@ def create_app(config_name: Optional[str] = None) -> Flask:
                     print(f"[SSE] Sending update: chunk={chunk}/{total} ({percent}%)")
                     yield f'data: {json.dumps({"chunk": chunk, "total_chunks": total, "percent": percent, "estimated_seconds": int(estimated_remaining)})}\n\n'
                     last_chunk = chunk
-                    
-                    # If completed, signal end
-                    if chunk >= total:
-                        print("[SSE] Progress complete, sending completion signal")
-                        yield f'data: {json.dumps({"completed": True})}\n\n'
-                        break
                 else:
-                    # Count consecutive empty reads
                     consecutive_empty += 1
                     # Send SSE comment heartbeat every ~10s to prevent Heroku H12 (30s kill)
                     if consecutive_empty % 200 == 0:
@@ -729,6 +777,55 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             'X-Accel-Buffering': 'no'
         }
     
+    @app.route('/generate/complete')
+    @login_required
+    def generate_complete():
+        """
+        Collect the result of async audio processing and store it to the session.
+
+        The browser navigates here after SSE signals {"completed": True}.
+        All data was prepared by the background thread and is waiting in _progress_state.
+        """
+        global _progress_state, _progress_lock
+
+        with _progress_lock:
+            processing_done = _progress_state.get('processing_done', False)
+            processing_error = _progress_state.get('error')
+            result = _progress_state.get('result')
+
+        if not processing_done:
+            flash('Processing is still in progress. Please wait.', 'warning')
+            return redirect(url_for('index'))
+
+        if processing_error:
+            flash(f'Error processing audio: {processing_error}', 'error')
+            return redirect(url_for('index'))
+
+        if not result:
+            flash('No result found. Please try again.', 'error')
+            return redirect(url_for('index'))
+
+        # Store to session (we're in a real request context here so session writes work)
+        session['mom_data'] = result['mom_data']
+        session['mom_json'] = result['mom_data']
+        session['mom_text'] = result['mom_text']
+        session['mom_text_path'] = result['mom_text_path']
+        session['transcript'] = result['transcript']
+        session['transcript_path'] = result['transcript_path']
+        session['transcript_length'] = result['transcript_length']
+        session['additional_context'] = result['additional_context']
+        session['validated'] = False
+        session['text_override'] = False
+
+        logger.info("="*80)
+        logger.info("SESSION DATA STORED (generate_complete)")
+        logger.info(f"Session keys: {list(session.keys())}")
+        logger.info(f"mom_data keys: {list(result['mom_data'].keys())}")
+        logger.info("="*80)
+
+        flash('MOM generated successfully! Please review and edit as needed.', 'success')
+        return redirect(url_for('edit'))
+
     @app.route('/edit')
     @login_required
     def edit():

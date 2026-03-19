@@ -138,36 +138,67 @@ const loadingTitle = document.getElementById('loadingTitle');
 const loadingDetail = document.getElementById('loadingDetail');
 
 if (inputForm) {
-    inputForm.addEventListener('submit', function() {
+    inputForm.addEventListener('submit', function(e) {
         const audioSelected = audioField && audioField.files && audioField.files.length > 0;
         overlay.style.display = 'flex';
 
         if (audioSelected) {
+            // Audio path: submit via fetch so the browser doesn't block waiting for
+            // the response — POST /generate returns 202 immediately and all processing
+            // happens in a background thread. SSE /progress signals when done.
+            e.preventDefault();
             loadingTitle.textContent = 'Processing Audio...';
-            loadingDetail.textContent = 'Starting transcription...';
+            loadingDetail.textContent = 'Uploading file...';
 
+            const formData = new FormData(inputForm);
+            fetch('/generate', { method: 'POST', body: formData })
+                .catch(function() {
+                    overlay.style.display = 'none';
+                    alert('Upload failed. Please try again.');
+                });
+
+            let progressHandled = false;
             const progressStream = new EventSource('/progress');
+
             progressStream.onmessage = function(event) {
                 try {
                     const data = JSON.parse(event.data);
-                    if (data.completed) {
+                    if (data.error) {
+                        progressHandled = true;
                         progressStream.close();
-                        return;
+                        // /generate/complete will flash the error and redirect to index
+                        window.location.href = '/generate/complete';
+                    } else if (data.completed) {
+                        progressHandled = true;
+                        progressStream.close();
+                        loadingTitle.textContent = 'Finalising...';
+                        loadingDetail.textContent = 'Saving your minutes...';
+                        window.location.href = '/generate/complete';
+                    } else {
+                        // Chunk progress update
+                        const chunk = data.chunk || 0;
+                        const total = data.total_chunks || 0;
+                        const percent = data.percent || 0;
+                        const eta = data.estimated_seconds || 0;
+                        if (percent >= 100) {
+                            loadingTitle.textContent = 'Generating Minutes...';
+                            loadingDetail.textContent = 'Transcription complete. Analysing meeting content...';
+                        } else {
+                            const etaText = eta > 0 ? ` (~${eta}s remaining)` : '';
+                            loadingDetail.textContent = `Transcribing chunk ${chunk}/${total} (${percent}%)${etaText}`;
+                        }
                     }
-                    const chunk = data.chunk || 0;
-                    const total = data.total_chunks || 0;
-                    const percent = data.percent || 0;
-                    const eta = data.estimated_seconds || 0;
-                    const etaText = eta > 0 ? ` (~${eta}s remaining)` : '';
-                    loadingDetail.textContent = `Chunk ${chunk}/${total} (${percent}%)${etaText}`;
                 } catch (err) {
                     progressStream.close();
                 }
             };
             progressStream.onerror = function() {
-                progressStream.close();
+                if (!progressHandled) {
+                    progressStream.close();
+                }
             };
         }
+        // Text path: let the form submit normally — no preventDefault needed.
     });
 }
 </script>
