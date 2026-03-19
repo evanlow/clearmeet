@@ -52,13 +52,9 @@ class MeetingObjective(BaseModel):
             raise ValueError("Start date & time is required")
         # Validate ISO 8601 format by attempting to parse
         try:
-            parsed_dt = datetime.fromisoformat(v_clean.replace('Z', '+00:00'))
-            # Check meeting is not in the past (allow today)
-            from datetime import date
-            if parsed_dt.date() < date.today():
-                raise ValueError("Meeting cannot be scheduled in the past")
+            datetime.fromisoformat(v_clean.replace('Z', '+00:00'))
         except ValueError as e:
-            if "past" in str(e).lower() or "required" in str(e).lower():
+            if "required" in str(e).lower():
                 raise
             raise ValueError("Start time must be in ISO 8601 format (YYYY-MM-DDTHH:MM or YYYY-MM-DDTHH:MM:SS)")
         return v_clean
